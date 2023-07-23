@@ -1,0 +1,108 @@
+# Set the minimum cmake version
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
+
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
+
+IF(UNIX)
+SET(CMAKE_CXX_STANDARD 20)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+ELSE()
+# Set the C++ standard
+#SET(CMAKE_CXX_STANDARD 14)
+#SET(CMAKE_CXX_STANDARD 17)
+#SET(CMAKE_CXX_STANDARD 20)
+ENDIF()
+
+SET(PROJECT_VERSION 0.1)
+
+# Set the project name
+PROJECT(ansible_vault VERSION ${PROJECT_VERSION} DESCRIPTION "Ansible vault encrypt/decrypt library")
+
+SET(PROJECT_DIRECTORY "./")
+
+# Debug build
+SET(CMAKE_BUILD_TYPE Debug)
+ADD_DEFINITIONS("-DDEBUG")
+
+# Release build
+#SET(CMAKE_BUILD_TYPE Release)
+#ADD_DEFINITIONS("-DNDEBUG")
+
+
+# Select flags
+SET(CMAKE_CXX_FLAGS_RELEASE "-O2")
+SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+
+IF(UNIX)
+# Add definitions, compiler switches, etc.
+ADD_DEFINITIONS("-std=c++20 -Wall -W -Wextra -Werror -Wformat -Wformat-y2k -Winit-self -Wstack-protector -Wunknown-pragmas -Wundef -Wwrite-strings -Wno-unused-parameter -Wpointer-arith -Wno-switch -Woverloaded-virtual -Wno-stack-protector -Wmissing-include-dirs -Wuninitialized -O2")
+ENDIF()
+
+IF(UNIX)
+  ADD_DEFINITIONS("-D__LINUX__")
+ENDIF()
+
+IF(WIN32)
+  ADD_DEFINITIONS("-DUNICODE -D_UNICODE")
+  ADD_DEFINITIONS("-DNOMINMAX")
+ENDIF()
+
+#INCLUDE_DIRECTORIES(./include/)
+
+
+# Ansible vault library
+# https://stackoverflow.com/questions/17511496/how-to-create-a-shared-library-with-cmake/45843676#45843676
+SET(PROJECT_SOURCE_FILES src/ansible_vault.cpp)
+ADD_LIBRARY(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_FILES})
+
+SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
+#SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES SOVERSION ${MAJOR_VERSION})
+SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER include/ansible_vault.h)
+
+
+include(GNUInstallDirs)
+
+# Declare files to install
+INSTALL(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+
+INCLUDE(FindPkgConfig)
+
+#SET(LIBRARIES
+#  external_library
+#)
+
+
+# Some of the libraries have different names than their Find*.cmake name
+SET(LIBRARIES_LINKED
+  pthread
+)
+
+
+#FOREACH(LIBRARY_FILE ${LIBRARIES})
+#  Find_Package(${LIBRARY_FILE} REQUIRED)
+#ENDFOREACH(LIBRARY_FILE)
+
+#need to link to some other libraries ? just add them here
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${LIBRARIES_LINKED})
+
+
+# Tests
+SET(PROJECT_TEST_NAME ${PROJECT_NAME}_test)
+INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS} ./include/)
+FILE(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/test/src/*.cpp)
+ADD_EXECUTABLE(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
+
+SET(LIBRARIES_LINKED_UNITTEST
+  ${LIBRARIES_LINKED}
+  ansible_vault
+  gtest
+)
+
+TARGET_LINK_LIBRARIES(${PROJECT_TEST_NAME}
+    ${LIBRARIES_LINKED_UNITTEST}
+)
