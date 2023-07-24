@@ -27,6 +27,67 @@ bool ReadFileAsText(const std::string& file_path, std::string& contents)
 
 }
 
+// TODO: Move this to a new test file
+TEST(Utils, TestBytesToHexToBytes)
+{
+  const std::vector<uint8_t> expected_bytes = {
+    0xDF, 0x42, 0xe0, 0xcd, 0xdd, 0xea, 0xbb, 0xc1, 0x82, 0xe7, 0x29, 0x7f, 0xc4, 0xc0, 0x20, 0x6b
+  };
+
+  // Test lower case
+  {
+    const std::string lower = "df42e0cdddeabbc182e7297fc4c0206b";
+    const std::vector<uint8_t> bytes = vault::HexStringToBytes(lower);
+    ASSERT_EQ(expected_bytes, bytes);
+
+    std::ostringstream output;
+    vault::BytesToHexString(bytes, 100, output);
+    ASSERT_STREQ("df42e0cdddeabbc182e7297fc4c0206b", output.str().c_str());
+  }
+
+  // Test upper case
+  {
+    const std::string upper = "DF42E0CDDDEABBC182E7297FC4C0206B";
+    const std::vector<uint8_t> bytes = vault::HexStringToBytes(upper);
+    ASSERT_EQ(expected_bytes, bytes);
+
+    std::ostringstream output;
+    vault::BytesToHexString(bytes, 100, output);
+    ASSERT_STREQ("df42e0cdddeabbc182e7297fc4c0206b", output.str().c_str());
+  }
+
+  // Test converting back to a string
+  {
+    std::ostringstream output;
+    vault::BytesToHexString(expected_bytes, 100, output);
+    ASSERT_STREQ("df42e0cdddeabbc182e7297fc4c0206b", output.str().c_str());
+  }
+}
+
+namespace {
+
+std::vector<uint8_t> CopyStringToBytes(std::string_view value)
+{
+  return std::vector<uint8_t>(value.begin(), value.end());
+}
+
+}
+
+// TODO: Move this to a new test file
+TEST(HMAC, TestCalculateHMAC)
+{
+  const std::vector<uint8_t> key = CopyStringToBytes("686edb9e07863f0b2f4a6ae42c33f903");
+  const std::vector<uint8_t> data = CopyStringToBytes("Science fiction books explore futuristic concepts in an imaginative way, dealing with advanced science that may or may not be possible, along with the consequences of how such creations would impact society. Popular subject matter includes alien-human interactions, intergalactic exploration and time travel.");
+  std::vector<uint8_t> out_hmac;
+  EXPECT_TRUE(vault::calculateHMAC(key, data, out_hmac));
+
+  EXPECT_EQ(32, out_hmac.size());
+  std::ostringstream output;
+  vault::BytesToHexString(out_hmac, 100, output);
+  EXPECT_STREQ("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1", output.str().c_str());
+}
+
+
 /*TEST(AnsibleVault, TestEncryptDecryptAES256Simple)
 {
   const std::string plain_text = "My encrypted text.\nAnd another line.\n";

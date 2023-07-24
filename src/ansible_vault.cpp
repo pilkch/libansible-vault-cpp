@@ -66,6 +66,8 @@ ansible-vault decrypt --output sample_decrypted.txt test/data/sample.txt
 
 #endif
 
+namespace {
+
 class SHA256 {
 public:
     std::string encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::optional<std::string_view> salt);
@@ -82,22 +84,27 @@ std::string SHA256::decrypt(std::string_view encrypted_text_utf8, std::string_vi
     return "";
 }
 
-
-
-
-void BytesToHex(const std::vector<unsigned char>& buffer, size_t line_length, std::ostringstream& output)
-{
-    output<<std::setfill('0')<<std::setw(2)<<std::hex;
-
-    for (auto& b : buffer) {
-        output<<int(b);
-    }
 }
 
-std::string BytesToHex(const CryptoPP::byte* value, size_t length)
+namespace vault {
+
+void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, std::ostringstream& output)
+{
+    for (auto& b : buffer) {
+        output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(b);
+    }
+
+    std::cout<<"BytesToHexString Buffer length: "<<buffer.size()<<std::endl;
+
+    // Reset the stream flags
+    output<<std::dec;
+}
+
+std::string BytesToHexString(const CryptoPP::byte* value, size_t length)
 {
     std::string result;
-    CryptoPP::HexEncoder encoder(new CryptoPP::StringSink(result));
+    const bool uppercase = false;
+    CryptoPP::HexEncoder encoder(new CryptoPP::StringSink(result), uppercase);
 
     encoder.Put(value, length);
     encoder.MessageEnd();
@@ -110,7 +117,7 @@ std::string BytesToHex(const CryptoPP::byte* value, size_t length)
 // in increasing order, but the only two alternative encodings
 // of the basic source character set that are still used by
 // anyone today (ASCII and EBCDIC) make them consecutive.
-inline uint8_t hexval(unsigned char c)
+inline uint8_t hexval(uint8_t c)
 {
     if ('0' <= c && c <= '9')
         return c - '0';
@@ -121,9 +128,9 @@ inline uint8_t hexval(unsigned char c)
     return c - 'A' + 10;
 }
 
-std::vector<unsigned char> unhex(std::string_view data)
+std::vector<uint8_t> HexStringToBytes(std::string_view data)
 {
-    std::vector<unsigned char> output;
+    std::vector<uint8_t> output;
 
     while (data.length() >= 2) {
         const char bytes[2] = {
@@ -145,6 +152,9 @@ std::vector<unsigned char> unhex(std::string_view data)
     return output;
 }
 
+}
+
+namespace vault {
 
 const size_t SALT_LENGTH = 32;
 const size_t KEYLEN = 32;
@@ -219,7 +229,7 @@ private:
         float fTimeSeconds = 0.0f;
         pbkdf.DeriveKey(derived, sizeof(derived), unused, password, plen, salt, slen, ITERATIONS, fTimeSeconds);
 
-        std::cout << "Derived: " << BytesToHex(derived, sizeof(derived)) << std::endl;
+        std::cout << "Derived: " << BytesToHexString(derived, sizeof(derived)) << std::endl;
 
         std::vector<uint8_t> derived_vector;
         for (size_t i = 0; i < sizeof(derived); i++) {
@@ -288,6 +298,7 @@ def _create_key_cryptography(b_password, b_salt, key_length, iv_length):
     std::vector<uint8_t> iv;
 };
 
+}
 
 #if 0
 
@@ -1250,9 +1261,9 @@ DECRYPT_RESULT ParseVaultContent(std::string_view& encrypted_data, VaultContent&
     std::cout<<"ParseVaultContent salt: \""<<salt_hex<<"\", hmac: \""<<hmac_hex<<"\", data: \""<<data_hex<<"\""<<std::endl;
 
     // Get the actual values
-    out_vault_content.salt = unhex(salt_hex);
-    out_vault_content.hmac = unhex(hmac_hex);
-    out_vault_content.data = unhex(data_hex);
+    out_vault_content.salt = HexStringToBytes(salt_hex);
+    out_vault_content.hmac = HexStringToBytes(hmac_hex);
+    out_vault_content.data = HexStringToBytes(data_hex);
 
     return DECRYPT_RESULT::OK;
 }
@@ -1268,45 +1279,30 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
 bool calculateHMAC(const std::vector<uint8_t>& key, const std::vector<uint8_t>& data, std::vector<uint8_t>& out_hmac)
 {
-    out_hmac.clear();
+    // Set the output to the correct number of zeros
+    out_hmac.assign(32, 0);
 
-    std::vector<CryptoPP::byte> keyBytes;
-    for (auto& k : key) {
-        keyBytes.push_back(k);
-    }
-
-    std::vector<CryptoPP::byte> dataBytes;
-    for (auto& d : data) {
-        dataBytes.push_back(d);
-    }
-
-    std::string mac;
+std::cout<<"calculateHMAC key length: "<<key.size()<<", data length: "<<data.size()<<std::endl;
 
     try {
-        CryptoPP::HMAC<CryptoPP::SHA256> hmac(keyBytes.data(), keyBytes.size());
+        CryptoPP::HMAC<CryptoPP::SHA256> hmac((const CryptoPP::byte*)key.data(), key.size());
 
-        CryptoPP::StringSource ss2(dataBytes.data(), true, 
+std::cout<<"calculateHMAC a"<<std::endl;
+
+        const bool pumpAll = true;
+        CryptoPP::ArraySource ss2((const CryptoPP::byte*)data.data(), data.size(), pumpAll, 
             new CryptoPP::HashFilter(hmac,
-                new CryptoPP::StringSink(mac)
+                new CryptoPP::ArraySink(out_hmac.data(), out_hmac.size())
             )
         );
+
+std::cout<<"calculateHMAC b"<<std::endl;
     } catch(const CryptoPP::Exception& e) {
         std::cerr<<e.what()<<std::endl;
         return false;
     }
 
-    // Pretty print
-    std::string encoded;
-    CryptoPP::StringSource ss3(mac, true,
-        new CryptoPP::HexEncoder(
-            new CryptoPP::StringSink(encoded)
-        )
-    );
-
-    for (auto& c : encoded) {
-        out_hmac.push_back(c);
-    }
-
+std::cout<<"calculateHMAC returning true"<<std::endl;
     return true;
 }
 
@@ -1551,13 +1547,13 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
     }
 
     std::ostringstream o1;
-    BytesToHex(vault_content.salt, 100, o1);
+    BytesToHexString(vault_content.salt, 100, o1);
     std::cout<<"salt "<<o1.str()<<std::endl;
     std::ostringstream o2;
-    BytesToHex(vault_content.hmac, 100, o2);
+    BytesToHexString(vault_content.hmac, 100, o2);
     std::cout<<"hmac: "<<o2.str()<<std::endl;
     std::ostringstream o3;
-    BytesToHex(vault_content.data, 100, o3);
+    BytesToHexString(vault_content.data, 100, o3);
     std::cout<<"data: "<<o3.str()<<std::endl;
 
 
@@ -1566,17 +1562,17 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
     const std::vector<uint8_t> cypherKey = keys.getEncryptionKey();
     std::ostringstream o4;
-    BytesToHex(cypherKey, 100, o4);
+    BytesToHexString(cypherKey, 100, o4);
     std::cout<<"Key 1 length: "<<cypherKey.size()<<", value: "<<o4.str()<<std::endl;
 
     const std::vector<uint8_t> hmacKey = keys.getHMACKey();
     std::ostringstream o5;
-    BytesToHex(hmacKey, 100, o5);
+    BytesToHexString(hmacKey, 100, o5);
     std::cout<<"Key 2 length: "<<hmacKey.size()<<", value: "<<o5.str()<<std::endl;
 
     const std::vector<uint8_t> iv = keys.getIV();
     std::ostringstream o6;
-    BytesToHex(iv, 100, o6);
+    BytesToHexString(iv, 100, o6);
     std::cout<<"IV length: "<<iv.size()<<", value: "<<o6.str()<<std::endl;
 
     const std::vector<uint8_t>& cypher = vault_content.data;

@@ -41,4 +41,14 @@ DECRYPT_RESULT parse_envelope();
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8);
 
+
+
+
+
+
+// Move this to an encryption.h/cpp
+void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, std::ostringstream& output);
+std::vector<uint8_t> HexStringToBytes(std::string_view data);
+bool calculateHMAC(const std::vector<uint8_t>& key, const std::vector<uint8_t>& data, std::vector<uint8_t>& out_hmac);
+
 }
