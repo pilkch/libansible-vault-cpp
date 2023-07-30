@@ -170,8 +170,8 @@ public:
 
     EncryptionKeychain(const std::vector<uint8_t>& _salt, const std::string& _password /*, int keylen, int ivlen, int iterations*/)
     {
-        password = _password;
         salt = _salt;
+        password = _password;
     }
 
     void createKeys()
@@ -203,7 +203,7 @@ public:
     }
 
 private:
-    static std::vector<uint8_t> createRawKey()
+    std::vector<uint8_t> createRawKey() const
     {
         /*PBKDF2Parameters params = new PBKDF2Parameters(algo, CHAR_ENCODING, salt, iterations);
         int keylength = ivlen + 2 * keylen;
@@ -214,20 +214,15 @@ private:
 
 
         // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
-        CryptoPP::byte password[] ="password";
-        const size_t plen = strlen((const char*)password);
 
-        CryptoPP::byte salt[] = "salt";
-        const size_t slen = strlen((const char*)salt);
-
-        //CryptoPP::byte derived[CryptoPP::SHA256::DIGESTSIZE];
-        const size_t derivedLength = IVLEN + 2 * KEYLEN;
-        CryptoPP::byte derived[derivedLength];
+        CryptoPP::byte derived[CryptoPP::SHA256::DIGESTSIZE];
+        //const size_t derivedLength = IVLEN + (2 * KEYLEN);
+        //CryptoPP::byte derived[derivedLength];
 
         CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> pbkdf;
         CryptoPP::byte unused = 0;
         float fTimeSeconds = 0.0f;
-        pbkdf.DeriveKey(derived, sizeof(derived), unused, password, plen, salt, slen, ITERATIONS, fTimeSeconds);
+        pbkdf.DeriveKey(derived, sizeof(derived), unused, (const CryptoPP::byte*)password.c_str(), password.length(), (const CryptoPP::byte*)salt.data(), salt.size(), ITERATIONS, fTimeSeconds);
 
         std::cout << "Derived: " << BytesToHexString(derived, sizeof(derived)) << std::endl;
 
