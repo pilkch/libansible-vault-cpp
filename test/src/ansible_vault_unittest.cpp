@@ -140,6 +140,33 @@ TEST(HMAC, TestCalculateHMAC)
 }*/
 
 
+
+// Just check that we can parse the basic headers and strip new lines
+TEST(AnsibleVault, TestParseSampleTxt)
+{
+  std::string encrypted;
+  ASSERT_TRUE(ReadFileAsText("test/data/sample.txt", encrypted));
+
+  std::string_view view(encrypted);
+
+  vault::VaultInfo vault_info;
+  EXPECT_EQ(vault::DECRYPT_RESULT::OK, vault::ParseVaultInfoString(view, vault_info));
+
+  vault::VaultContent vault_content;
+  EXPECT_EQ(vault::DECRYPT_RESULT::OK, vault::ParseVaultContent(view, vault_content));
+
+  std::ostringstream o1;
+  vault::BytesToHexString(vault_content.salt, 1000, o1);
+  EXPECT_EQ("65643334393632353261643630316366353731616333386561623535353434666439646534666331", o1.str());
+  std::ostringstream o2;
+  vault::BytesToHexString(vault_content.hmac, 1000, o2);
+  EXPECT_EQ("3630653030353365363838653164613166626239386634300a633332396465653463626334343132", o2.str());
+  std::ostringstream o3;
+  vault::BytesToHexString(vault_content.data, 1000, o3);
+  EXPECT_EQ("323934653037376163613931643233633437316230636338343733393637666538316462633063313833326462306638380a3238313262633135376162616135336637613836653232663965643235336464", o3.str());
+}
+
+
 // Tests from: https://github.com/vermut/intellij-encryption/blob/c0999f0dc857dd7449bcefa385e31a2536272097/src/test/java/com/ansible/parsing/vault/VaultLibTest.kt
 
 TEST(AnsibleVault, TestDecryptAES256SampleTxt)

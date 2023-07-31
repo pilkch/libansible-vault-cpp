@@ -1212,16 +1212,6 @@ def parse_vaulttext_envelope(b_vaulttext_envelope, default_vault_id=None, filena
 #endif
 
 
-class VaultInfo {
-public:
-    VaultInfo();
-
-    void clear();
-
-    std::string vault_version;
-    ENCRYPTION_METHOD encryption_method;
-};
-
 VaultInfo::VaultInfo() :
     vault_version("1.1"),
     encryption_method(ENCRYPTION_METHOD::AES256)
@@ -1279,21 +1269,6 @@ DECRYPT_RESULT ParseVaultInfoString(std::string_view& info_line, VaultInfo& out_
 
     return DECRYPT_RESULT::OK;
 }
-
-
-class VaultContent {
-public:
-    void clear()
-    {
-        salt.clear();
-        hmac.clear();
-        data.clear();
-    }
-
-    std::vector<uint8_t> salt;
-    std::vector<uint8_t> hmac;
-    std::vector<uint8_t> data;
-};
 
 
 

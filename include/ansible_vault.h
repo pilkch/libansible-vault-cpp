@@ -27,6 +27,40 @@ enum class ENCRYPTION_METHOD {
     AES256
 };
 
+
+
+class VaultInfo {
+public:
+    VaultInfo();
+
+    void clear();
+
+    std::string vault_version;
+    ENCRYPTION_METHOD encryption_method;
+};
+
+DECRYPT_RESULT ParseVaultInfoString(std::string_view& info_line, VaultInfo& out_vault_info);
+
+
+class VaultContent {
+public:
+    void clear()
+    {
+        salt.clear();
+        hmac.clear();
+        data.clear();
+    }
+
+    std::vector<uint8_t> salt;
+    std::vector<uint8_t> hmac;
+    std::vector<uint8_t> data;
+};
+
+
+
+DECRYPT_RESULT ParseVaultContent(std::string_view& encrypted_data, VaultContent& out_vault_content);
+
+
 bool is_encrypted(const std::string_view& content);
 
 // Encrypt some plain text in the encrypted vault format
