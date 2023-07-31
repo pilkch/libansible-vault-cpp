@@ -50,5 +50,6 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, std::ostringstream& output);
 std::vector<uint8_t> HexStringToBytes(std::string_view data);
 bool calculateHMAC(const std::vector<uint8_t>& key, const std::vector<uint8_t>& data, std::vector<uint8_t>& out_hmac);
+bool verifyHMAC(const std::vector<uint8_t>& expected_hmac, const std::vector<uint8_t>& key, const std::vector<uint8_t>& data);
 
 }

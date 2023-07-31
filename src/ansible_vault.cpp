@@ -19,6 +19,55 @@
 
 #include "ansible_vault.h"
 
+
+// In the cryptopp headers:
+// typedef unsigned char byte;
+
+
+// Explicit memset and constant time memory comparison
+// https://github.com/AGWA/git-crypt/blob/master/util.cpp
+
+void* explicit_memset(void* s, int c, std::size_t n)
+{
+  volatile unsigned char* p = reinterpret_cast<unsigned char*>(s);
+
+  while (n--) {
+    *p++ = c;
+  }
+
+  return s;
+}
+
+bool leakless_equals(const unsigned char* a, const unsigned char* b, std::size_t len)
+{
+  volatile int diff = 0;
+
+  while (len > 0) {
+    diff |= *a++ ^ *b++;
+    --len;
+  }
+
+  return diff == 0;
+}
+
+bool leakless_equals(const void* a, const void* b, std::size_t len)
+{
+  return leakless_equals(reinterpret_cast<const unsigned char*>(a), reinterpret_cast<const unsigned char*>(b), len);
+}
+
+std::string strip_new_lines(std::string_view view)
+{
+    std::ostringstream o;
+
+    for (auto& c : view) {
+        if (c != '\n') {
+            o<<c;
+        }
+    }
+
+    return o.str();
+}
+
 // Decrypt
 //
 // Command line example
@@ -166,12 +215,12 @@ const std::string CHAR_ENCODING = "UTF-8";
 class EncryptionKeychain {
 public:
     std::vector<uint8_t> salt;
-    std::string password;
+    std::string_view password_utf8;
 
-    EncryptionKeychain(const std::vector<uint8_t>& _salt, const std::string& _password /*, int keylen, int ivlen, int iterations*/)
+    EncryptionKeychain(const std::vector<uint8_t>& _salt, std::string_view _password_utf8 /*, int keylen, int ivlen, int iterations*/)
     {
         salt = _salt;
-        password = _password;
+        password_utf8 = _password_utf8;
     }
 
     void createKeys()
@@ -212,24 +261,47 @@ private:
         return keys;*/
 
 
+    /*def _gen_key_initctr(cls, b_password, b_salt):
+        # 16 for AES 128, 32 for AES256
+        keylength = 32
+
+        # match the size used for counter.new to avoid extra work
+        ivlength = 16
+
+        if HAS_PBKDF2HMAC:
+            kdf = PBKDF2HMAC(
+                algorithm=c_SHA256(),
+                length=2 * keylength + ivlength,
+                salt=b_salt,
+                iterations=10000)
+            b_derivedkey = kdf.derive(b_password)
+        else:
+            b_derivedkey = cls._create_key(b_password, b_salt, keylength, ivlength)
+
+        b_key1 = b_derivedkey[:keylength]
+        b_key2 = b_derivedkey[keylength:(keylength * 2)]
+        b_iv = b_derivedkey[(keylength * 2):(keylength * 2) + ivlength]
+
+        return b_key1, b_key2, hexlify(b_iv)*/
+
 
         // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
 
-        CryptoPP::byte derived[CryptoPP::SHA256::DIGESTSIZE];
-        //const size_t derivedLength = IVLEN + (2 * KEYLEN);
-        //CryptoPP::byte derived[derivedLength];
+        //CryptoPP::byte derived[CryptoPP::SHA256::DIGESTSIZE]; // 32 bytes, 256 bits
+        const size_t derivedLength = IVLEN + (2 * KEYLEN);
+        CryptoPP::byte derived[derivedLength];
 
         CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> pbkdf;
         CryptoPP::byte unused = 0;
-        float fTimeSeconds = 0.0f;
-        pbkdf.DeriveKey(derived, sizeof(derived), unused, (const CryptoPP::byte*)password.c_str(), password.length(), (const CryptoPP::byte*)salt.data(), salt.size(), ITERATIONS, fTimeSeconds);
+        pbkdf.DeriveKey(derived, sizeof(derived), unused, (const CryptoPP::byte*)password_utf8.data(), password_utf8.length(), (const CryptoPP::byte*)salt.data(), salt.size(), ITERATIONS);
 
         std::cout << "Derived: " << BytesToHexString(derived, sizeof(derived)) << std::endl;
 
         std::vector<uint8_t> derived_vector;
-        for (size_t i = 0; i < sizeof(derived); i++) {
-            derived_vector.push_back(derived[i]);
+        for (auto& b : derived) {
+            derived_vector.push_back(b);
         }
+
         return derived_vector;
     }
 /*
@@ -269,13 +341,13 @@ def _create_key_cryptography(b_password, b_salt, key_length, iv_length):
 
     static std::vector<uint8_t> getHMACKey(const std::vector<uint8_t>& keys)
     {
-        std::vector<uint8_t> result(keys.begin() + KEYLEN, keys.begin() + KEYLEN * 2);
+        std::vector<uint8_t> result(keys.begin() + KEYLEN, keys.begin() + (KEYLEN * 2));
         return result;
     }
 
     static std::vector<uint8_t> getIV(const std::vector<uint8_t>& keys)
     {
-        std::vector<uint8_t> result(keys.begin() + KEYLEN * 2, keys.begin() + KEYLEN * 2 + IVLEN);
+        std::vector<uint8_t> result(keys.begin() + (KEYLEN * 2), keys.begin() + (KEYLEN * 2) + IVLEN);
         return result;
     }
 
@@ -961,7 +1033,7 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, ENCRYPTION_METHOD encry
         tempSalt = generateSalt(SALT_LENGTH);
         salt_utf8 = tempSalt;
     }
-    EncryptionKeychain keys = new EncryptionKeychain(salt_utf8, paspassword_utf8sword);
+    EncryptionKeychain keys = new EncryptionKeychain(salt_utf8, password_utf8);
     keys.createKeys();
     byte[] cypherKey = keys.getEncryptionKey();
     logger.debug("Key 1: {} - {}", cypherKey.length, Util.hexit(cypherKey, 100));
@@ -1301,14 +1373,14 @@ std::cout<<"calculateHMAC returning true"<<std::endl;
     return true;
 }
 
-bool verifyHMAC(const std::vector<uint8_t>& hmac, const std::vector<uint8_t>& key, const std::vector<uint8_t>& data)
+bool verifyHMAC(const std::vector<uint8_t>& expected_hmac, const std::vector<uint8_t>& key, const std::vector<uint8_t>& data)
 {
     std::vector<uint8_t> calculated;
     if (!calculateHMAC(key, data, calculated)) {
         return false;
     }
 
-    return (hmac == calculated);
+    return (expected_hmac == calculated);
 }
 
 
@@ -1362,103 +1434,103 @@ using CryptoPP::CTR_Mode;
 
 int main(int argc, char* argv[])
 {
-	AutoSeededRandomPool prng;
+  AutoSeededRandomPool prng;
 
-	byte key[AES::DEFAULT_KEYLENGTH];
-	prng.GenerateBlock(key, sizeof(key));
+  byte key[AES::DEFAULT_KEYLENGTH];
+  prng.GenerateBlock(key, sizeof(key));
 
-	byte iv[AES::BLOCKSIZE];
-	prng.GenerateBlock(iv, sizeof(iv));
+  byte iv[AES::BLOCKSIZE];
+  prng.GenerateBlock(iv, sizeof(iv));
 
-	string plain = "CTR Mode Test";
-	string cipher, encoded, recovered;
+  string plain = "CTR Mode Test";
+  string cipher, encoded, recovered;
 
-	/*********************************\
-	\*********************************/
+  /*********************************\
+  \*********************************/
 
-	// Pretty print key
-	encoded.clear();
-	StringSource(key, sizeof(key), true,
-		new HexEncoder(
-			new StringSink(encoded)
-		) // HexEncoder
-	); // StringSource
-	cout << "key: " << encoded << endl;
+  // Pretty print key
+  encoded.clear();
+  StringSource(key, sizeof(key), true,
+    new HexEncoder(
+      new StringSink(encoded)
+    ) // HexEncoder
+  ); // StringSource
+  cout << "key: " << encoded << endl;
 
-	// Pretty print iv
-	encoded.clear();
-	StringSource(iv, sizeof(iv), true,
-		new HexEncoder(
-			new StringSink(encoded)
-		) // HexEncoder
-	); // StringSource
-	cout << "iv: " << encoded << endl;
+  // Pretty print iv
+  encoded.clear();
+  StringSource(iv, sizeof(iv), true,
+    new HexEncoder(
+      new StringSink(encoded)
+    ) // HexEncoder
+  ); // StringSource
+  cout << "iv: " << encoded << endl;
 
-	/*********************************\
-	\*********************************/
+  /*********************************\
+  \*********************************/
 
-	try
-	{
-		cout << "plain text: " << plain << endl;
+  try
+  {
+    cout << "plain text: " << plain << endl;
 
-		CTR_Mode< AES >::Encryption e;
-		e.SetKeyWithIV(key, sizeof(key), iv);
+    CTR_Mode< AES >::Encryption e;
+    e.SetKeyWithIV(key, sizeof(key), iv);
 
-		// The StreamTransformationFilter adds padding
-		//  as required. ECB and CBC Mode must be padded
-		//  to the block size of the cipher.
-		StringSource(plain, true, 
-			new StreamTransformationFilter(e,
-				new StringSink(cipher)
-			) // StreamTransformationFilter      
-		); // StringSource
-	}
-	catch(const CryptoPP::Exception& e)
-	{
-		cerr << e.what() << endl;
-		exit(1);
-	}
+    // The StreamTransformationFilter adds padding
+    //  as required. ECB and CBC Mode must be padded
+    //  to the block size of the cipher.
+    StringSource(plain, true, 
+      new StreamTransformationFilter(e,
+        new StringSink(cipher)
+      ) // StreamTransformationFilter      
+    ); // StringSource
+  }
+  catch(const CryptoPP::Exception& e)
+  {
+    cerr << e.what() << endl;
+    exit(1);
+  }
 
-	/*********************************\
-	\*********************************/
+  /*********************************\
+  \*********************************/
 
-	// Pretty print
-	encoded.clear();
-	StringSource(cipher, true,
-		new HexEncoder(
-			new StringSink(encoded)
-		) // HexEncoder
-	); // StringSource
-	cout << "cipher text: " << encoded << endl;
+  // Pretty print
+  encoded.clear();
+  StringSource(cipher, true,
+    new HexEncoder(
+      new StringSink(encoded)
+    ) // HexEncoder
+  ); // StringSource
+  cout << "cipher text: " << encoded << endl;
 
-	/*********************************\
-	\*********************************/
+  /*********************************\
+  \*********************************/
 
-	try
-	{
-		CTR_Mode< AES >::Decryption d;
-		d.SetKeyWithIV(key, sizeof(key), iv);
+  try
+  {
+    CTR_Mode< AES >::Decryption d;
+    d.SetKeyWithIV(key, sizeof(key), iv);
 
-		// The StreamTransformationFilter removes
-		//  padding as required.
-		StringSource s(cipher, true, 
-			new StreamTransformationFilter(d,
-				new StringSink(recovered)
-			) // StreamTransformationFilter
-		); // StringSource
+    // The StreamTransformationFilter removes
+    //  padding as required.
+    StringSource s(cipher, true, 
+      new StreamTransformationFilter(d,
+        new StringSink(recovered)
+      ) // StreamTransformationFilter
+    ); // StringSource
 
-		cout << "recovered text: " << recovered << endl;
-	}
-	catch(const CryptoPP::Exception& e)
-	{
-		cerr << e.what() << endl;
-		exit(1);
-	}
+    cout << "recovered text: " << recovered << endl;
+  }
+  catch(const CryptoPP::Exception& e)
+  {
+    cerr << e.what() << endl;
+    exit(1);
+  }
 
-	/*********************************\
-	\*********************************/
+  /*********************************\
+  \*********************************/
 
-	return 0;
+  return 0;
 }
 
 #endif
@@ -1485,7 +1557,7 @@ bool decryptAES(const std::vector<uint8_t>& _cypher, const std::vector<uint8_t>&
     out_decrypted = unpad(decrypted);*/
 
 
-	CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH];
+  CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH];
     for (size_t i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++) {
         key[i] = static_cast<CryptoPP::byte>(_key[i]);
     }
@@ -1552,19 +1624,22 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
     std::cout<<"data: "<<o3.str()<<std::endl;
 
 
-    EncryptionKeychain keys(vault_content.salt, std::string(password_utf8));
+    EncryptionKeychain keys(vault_content.salt, password_utf8);
     keys.createKeys();
 
+    // key1
     const std::vector<uint8_t> cypherKey = keys.getEncryptionKey();
     std::ostringstream o4;
     BytesToHexString(cypherKey, 100, o4);
     std::cout<<"Key 1 length: "<<cypherKey.size()<<", value: "<<o4.str()<<std::endl;
 
+    // key2
     const std::vector<uint8_t> hmacKey = keys.getHMACKey();
     std::ostringstream o5;
     BytesToHexString(hmacKey, 100, o5);
     std::cout<<"Key 2 length: "<<hmacKey.size()<<", value: "<<o5.str()<<std::endl;
 
+    // iv
     const std::vector<uint8_t> iv = keys.getIV();
     std::ostringstream o6;
     BytesToHexString(iv, 100, o6);

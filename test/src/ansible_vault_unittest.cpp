@@ -85,7 +85,11 @@ TEST(HMAC, TestCalculateHMAC)
   std::ostringstream output;
   vault::BytesToHexString(out_hmac, 100, output);
   EXPECT_STREQ("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1", output.str().c_str());
+
+  // And check that verifyHMAC also works with this data
+  EXPECT_TRUE(vault::verifyHMAC(vault::HexStringToBytes("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1"), key, data));
 }
+
 
 
 /*TEST(AnsibleVault, TestEncryptDecryptAES256Simple)
