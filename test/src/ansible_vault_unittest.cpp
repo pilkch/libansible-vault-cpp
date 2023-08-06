@@ -141,6 +141,62 @@ TEST(HMAC, TestCalculateHMAC)
 
 
 
+TEST(AnsibleVault, TestParseBadVaultFileNoSignature)
+{
+  const std::string encrypted = "Random Garbage\nsjksdfsdjkflsdjkl\nsdfjsdfjisdfjo\nsdfsdfdssdsdfsdfjksdfjksdfj\nsdfsdsddfssdfsdf";
+
+  std::string_view view(encrypted);
+
+  vault::VaultInfo vault_info;
+  EXPECT_EQ(vault::DECRYPT_RESULT::ERROR_PARSING_ENVELOPE_ANSIBLE_VAULT_SIGNATURE, vault::ParseVaultInfoString(view, vault_info));
+}
+
+TEST(AnsibleVault, TestParseBadVaultFileUnsupportedEnvelopeVersion)
+{
+  const std::string encrypted = "$ANSIBLE_VAULT;1.0;AES256\nsjksdfsdjkflsdjkl\nsdfjsdfjisdfjo\nsdfsdfdssdsdfsdfjksdfjksdfj\nsdfsdsddfssdfsdf";
+
+  std::string_view view(encrypted);
+
+  vault::VaultInfo vault_info;
+  EXPECT_EQ(vault::DECRYPT_RESULT::ERROR_UNSUPPORTED_ENVELOPE_VERSION, vault::ParseVaultInfoString(view, vault_info));
+}
+
+TEST(AnsibleVault, TestParseBadVaultFileUnsupportedEncryptionMethod)
+{
+  const std::string encrypted = "$ANSIBLE_VAULT;1.1;AES512\nsjksdfsdjkflsdjkl\nsdfjsdfjisdfjo\nsdfsdfdssdsdfsdfjksdfjksdfj\nsdfsdsddfssdfsdf";
+
+  std::string_view view(encrypted);
+
+  vault::VaultInfo vault_info;
+  EXPECT_EQ(vault::DECRYPT_RESULT::ERROR_UNSUPPORED_ENCRYPTION_METHOD, vault::ParseVaultInfoString(view, vault_info));
+}
+
+TEST(AnsibleVault, TestParseBadVaultFileUnsupportedErrorParsingSalt)
+{
+  const std::string encrypted = "$ANSIBLE_VAULT;1.1;AES256\nsjksdfsdjkflsdjkl";
+
+  std::string_view view(encrypted);
+
+  vault::VaultInfo vault_info;
+  EXPECT_EQ(vault::DECRYPT_RESULT::OK, vault::ParseVaultInfoString(view, vault_info));
+
+  vault::VaultContent vault_content;
+  EXPECT_EQ(vault::DECRYPT_RESULT::ERROR_PARSING_VAULT_CONTENT_SALT, vault::ParseVaultContent(view, vault_content));
+}
+
+TEST(AnsibleVault, TestParseBadVaultFileUnsupportedErrorParsingHMAC)
+{
+  const std::string encrypted = "$ANSIBLE_VAULT;1.1;AES256\nsjksdfsdjkflsdjkl\nsdfsdfsdfsdfjk";
+
+  std::string_view view(encrypted);
+
+  vault::VaultInfo vault_info;
+  EXPECT_EQ(vault::DECRYPT_RESULT::OK, vault::ParseVaultInfoString(view, vault_info));
+
+  vault::VaultContent vault_content;
+  EXPECT_EQ(vault::DECRYPT_RESULT::ERROR_PARSING_VAULT_CONTENT_HMAC, vault::ParseVaultContent(view, vault_content));
+}
+
 // Just check that we can parse the basic headers and strip new lines
 TEST(AnsibleVault, TestParseSampleTxt)
 {
