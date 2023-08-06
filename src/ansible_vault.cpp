@@ -186,15 +186,15 @@ std::vector<uint8_t> HexStringToBytes(std::string_view data)
             data.data()[0],
             data.data()[1]
         };
-        if (!isxdigit(bytes[0])) {
-            // Just remove one byte and check the next one
-            data.remove_prefix(1);
-        } else if (isxdigit(bytes[1])) {
+        if (isxdigit(bytes[0]) && isxdigit(bytes[1])) {
             uint8_t c = hexval(bytes[0]);
             c = (c << 4) + hexval(bytes[1]);
             output.push_back(int(c));
 
             data.remove_prefix(2);
+        } else {
+            // Just remove one byte and check the next one
+            data.remove_prefix(1);
         }
     }
 
@@ -1350,12 +1350,12 @@ std::cout<<"calculateHMAC returning true"<<std::endl;
 
 bool verifyHMAC(const std::vector<uint8_t>& expected_hmac, const std::vector<uint8_t>& key, const std::vector<uint8_t>& data)
 {
-    std::vector<uint8_t> calculated;
-    if (!calculateHMAC(key, data, calculated)) {
+    std::vector<uint8_t> calculated_hmac;
+    if (!calculateHMAC(key, data, calculated_hmac)) {
         return false;
     }
 
-    return (expected_hmac == calculated);
+    return (expected_hmac == calculated_hmac);
 }
 
 
