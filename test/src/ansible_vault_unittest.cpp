@@ -66,6 +66,16 @@ TEST(Utils, TestBytesToHexToBytes)
 
 namespace {
 
+template <size_t N>
+void CopyStringToBytes(std::string_view value, std::array<uint8_t, N>& out_bytes)
+{
+  out_bytes.fill(0);
+
+  for (size_t i = 0; i < N && i < 32; i++) {
+    out_bytes[i] = value.data()[i];
+  }
+}
+
 std::vector<uint8_t> CopyStringToBytes(std::string_view value)
 {
   return std::vector<uint8_t>(value.begin(), value.end());
@@ -76,9 +86,10 @@ std::vector<uint8_t> CopyStringToBytes(std::string_view value)
 // TODO: Move this to a new test file
 TEST(HMAC, TestCalculateHMAC)
 {
-  const std::vector<uint8_t> key = CopyStringToBytes("686edb9e07863f0b2f4a6ae42c33f903");
+  std::array<uint8_t, 32> key;
+  CopyStringToBytes("686edb9e07863f0b2f4a6ae42c33f903", key);
   const std::vector<uint8_t> data = CopyStringToBytes("Science fiction books explore futuristic concepts in an imaginative way, dealing with advanced science that may or may not be possible, along with the consequences of how such creations would impact society. Popular subject matter includes alien-human interactions, intergalactic exploration and time travel.");
-  std::vector<uint8_t> out_hmac;
+  std::array<uint8_t, 32> out_hmac;
   EXPECT_TRUE(vault::calculateHMAC(key, data, out_hmac));
 
   EXPECT_EQ(32, out_hmac.size());
@@ -87,7 +98,9 @@ TEST(HMAC, TestCalculateHMAC)
   EXPECT_STREQ("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1", output.str().c_str());
 
   // And check that verifyHMAC also works with this data
-  EXPECT_TRUE(vault::verifyHMAC(vault::HexStringToBytes("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1"), key, data));
+  std::array<uint8_t, 32> as_bytes;
+  vault::HexStringToBytes("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1", as_bytes);
+  EXPECT_TRUE(vault::verifyHMAC(as_bytes, key, data));
 }
 
 
@@ -186,7 +199,8 @@ TEST(AnsibleVault, TestParseBadVaultFileUnsupportedErrorParsingSalt)
 
 TEST(AnsibleVault, TestParseBadVaultFileUnsupportedErrorParsingHMAC)
 {
-  const std::string encrypted = "$ANSIBLE_VAULT;1.1;AES256\nsjksdfsdjkflsdjkl\nsdfsdfsdfsdfjk";
+  // This string has a valid salt, but no HMAC
+  const std::string encrypted = "$ANSIBLE_VAULT;1.1;AES256\n34363666386533643832343235623034623131343631376365363864323931303064316139626539\n6266306430383133643966343763613937626566646238650a616232363462343162346331393837\nsdfsdfsdfsdfjk";
 
   std::string_view view(encrypted);
 
@@ -213,13 +227,13 @@ TEST(AnsibleVault, TestParseSampleTxt)
 
   std::ostringstream o1;
   vault::BytesToHexString(vault_content.salt, 1000, o1);
-  EXPECT_EQ("65643334393632353261643630316366353731616333386561623535353434666439646534666331", o1.str());
+  EXPECT_EQ("ed3496252ad601cf571ac38eab55544fd9de4fc160e0053e688e1da1fbb98f40", o1.str());
   std::ostringstream o2;
   vault::BytesToHexString(vault_content.hmac, 1000, o2);
-  EXPECT_EQ("3630653030353365363838653164613166626239386634300a633332396465653463626334343132", o2.str());
+  EXPECT_EQ("c329dee4cbc4412294e077aca91d23c471b0cc8473967fe81dbc0c1832db0f88", o2.str());
   std::ostringstream o3;
   vault::BytesToHexString(vault_content.data, 1000, o3);
-  EXPECT_EQ("323934653037376163613931643233633437316230636338343733393637666538316462633063313833326462306638380a3238313262633135376162616135336637613836653232663965643235336464", o3.str());
+  EXPECT_EQ("2812bc157abaa53f7a86e22f9ed253dd", o3.str());
 }
 
 
