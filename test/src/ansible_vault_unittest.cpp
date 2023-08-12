@@ -236,5 +236,22 @@ TEST(AnsibleVault, TestDecryptAES256SampleTxt)
   const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted, password, decrypted);
   ASSERT_EQ(vault::DECRYPT_RESULT::OK, decryption_result);
 
-  ASSERT_STREQ(decrypted.str().c_str(), "foobar");
+  ASSERT_STREQ(decrypted.str().c_str(), "foobar\n");
+}
+
+
+// Tests from: https://github.com/tweedegolf/ansible-vault-rs/blob/master/src/lib.rs
+
+TEST(AnsibleVault, TestDecryptAES256LargerTxt)
+{
+  std::string encrypted;
+  ASSERT_TRUE(ReadFileAsText("test/data/larger.txt", encrypted));
+
+  const std::string password = "shibboleet";
+
+  std::ostringstream decrypted;
+  const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted, password, decrypted);
+  ASSERT_EQ(vault::DECRYPT_RESULT::OK, decryption_result);
+
+  ASSERT_STREQ(decrypted.str().c_str(), "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare ullamcorper odio a lacinia. Duis eget placerat nunc. Cras vel sollicitudin sapien. Donec ac elit in felis pulvinar posuere. Sed laoreet sagittis nunc et commodo. Nulla posuere euismod enim nec ornare. Aliquam sed metus sed mauris eleifend sollicitudin. Praesent et eros elit. Suspendisse blandit sagittis mi, id efficitur tellus. Nunc at aliquam metus, ut euismod risus.\n");
 }
