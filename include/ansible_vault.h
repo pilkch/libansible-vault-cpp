@@ -46,17 +46,15 @@ class VaultContent {
 public:
     void clear()
     {
-        salt.clear();
-        hmac.clear();
+        salt.fill(0);
+        hmac.fill(0);
         data.clear();
     }
 
-    std::vector<uint8_t> salt;
-    std::vector<uint8_t> hmac;
+    std::array<uint8_t, 32> salt;
+    std::array<uint8_t, 32> hmac;
     std::vector<uint8_t> data;
 };
-
-
 
 DECRYPT_RESULT ParseVaultContent(std::string_view& encrypted_data, VaultContent& out_vault_content);
 
@@ -81,9 +79,65 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
 
 // Move this to an encryption.h/cpp
+
+// C++98 guarantees that '0', '1', ... '9' are consecutive.
+// It only guarantees that 'a' ... 'f' and 'A' ... 'F' are
+// in increasing order, but the only two alternative encodings
+// of the basic source character set that are still used by
+// anyone today (ASCII and EBCDIC) make them consecutive.
+inline uint8_t hexval(uint8_t c)
+{
+    if ('0' <= c && c <= '9')
+        return c - '0';
+    else if ('a' <= c && c <= 'f')
+        return c - 'a' + 10;
+
+    // Assume 'A'..'F'
+    return c - 'A' + 10;
+}
+
+template <size_t N>
+inline void BytesToHexString(const std::array<uint8_t, N>& buffer, size_t line_length, std::ostringstream& output)
+{
+    for (auto& b : buffer) {
+        output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(b);
+    }
+
+    std::cout<<"BytesToHexString Buffer length: "<<buffer.size()<<std::endl;
+
+    // Reset the stream flags
+    output<<std::dec;
+}
+
+template <size_t N>
+inline void HexStringToBytes(std::string_view data, std::array<uint8_t, N>& out_bytes)
+{
+    out_bytes.fill(0);
+
+    size_t i = 0;
+    while ((data.length() >= 2) && (i < N)) {
+        const char bytes[2] = {
+            data.data()[0],
+            data.data()[1]
+        };
+        if (isxdigit(bytes[0]) && isxdigit(bytes[1])) {
+            uint8_t c = hexval(bytes[0]);
+            c = (c << 4) + hexval(bytes[1]);
+
+            out_bytes[i] = int(c);
+            i++;
+
+            data.remove_prefix(2);
+        } else {
+            // Just remove one byte and check the next one
+            data.remove_prefix(1);
+        }
+    }
+}
+
 void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, std::ostringstream& output);
 std::vector<uint8_t> HexStringToBytes(std::string_view data);
-bool calculateHMAC(const std::vector<uint8_t>& key, const std::vector<uint8_t>& data, std::vector<uint8_t>& out_hmac);
-bool verifyHMAC(const std::vector<uint8_t>& expected_hmac, const std::vector<uint8_t>& key, const std::vector<uint8_t>& data);
+bool calculateHMAC(const std::array<uint8_t, 32>& hmac_key, const std::vector<uint8_t>& data, std::array<uint8_t, 32>& out_hmac);
+bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<uint8_t, 32>& hmac_key, const std::vector<uint8_t>& data);
 
 }
