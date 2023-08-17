@@ -137,6 +137,13 @@ std::string SHA256::decrypt(std::string_view encrypted_text_utf8, std::string_vi
 
 namespace vault {
 
+void EncodeStringToHexString(std::string_view view, std::ostringstream& output)
+{
+  for (char c : view) {
+    output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(c);
+  }
+}
+
 std::string DecodeHexStringToString(std::string_view& view)
 {
     std::ostringstream o;
@@ -233,6 +240,15 @@ public:
         password_utf8 = _password_utf8;
     }
 
+    static std::array<uint8_t, 32> generateSalt(size_t length)
+    {
+        std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> rbe;
+        std::array<uint8_t, 32> salt;
+        std::generate(begin(salt), end(salt), std::ref(rbe));
+
+        return salt;
+    }
+
     void createKeys()
     {
         // Returns a byte array:
@@ -266,37 +282,6 @@ private:
     {
         std::cout<<"createRawKey with password: "<<password_utf8<<", password len="<<password_utf8.length()<<", salt len="<<salt.size()<<std::endl;
 
-        /*PBKDF2Parameters params = new PBKDF2Parameters(algo, CHAR_ENCODING, salt, iterations);
-        int keylength = ivlen + 2 * keylen;
-        PBKDF2Engine pbkdf2Engine = new PBKDF2Engine(params);
-        std::vector<uint8_t> keys = pbkdf2Engine.deriveKey(password, keylength);
-        return keys;*/
-
-
-    /*def _gen_key_initctr(cls, b_password, b_salt):
-        # 16 for AES 128, 32 for AES256
-        keylength = 32
-
-        # match the size used for counter.new to avoid extra work
-        ivlength = 16
-
-        if HAS_PBKDF2HMAC:
-            kdf = PBKDF2HMAC(
-                algorithm=c_SHA256(),
-                length=2 * keylength + ivlength,
-                salt=b_salt,
-                iterations=10000)
-            b_derivedkey = kdf.derive(b_password)
-        else:
-            b_derivedkey = cls._create_key(b_password, b_salt, keylength, ivlength)
-
-        b_key1 = b_derivedkey[:keylength]
-        b_key2 = b_derivedkey[keylength:(keylength * 2)]
-        b_iv = b_derivedkey[(keylength * 2):(keylength * 2) + ivlength]
-
-        return b_key1, b_key2, hexlify(b_iv)*/
-
-#if 1
         // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
 
         //CryptoPP::byte derived_bytes[CryptoPP::SHA256::DIGESTSIZE]; // 32 bytes, 256 bits
@@ -314,14 +299,6 @@ private:
                 i++;
         }
     }
-#else
-        std::cout<<"Calling PKCS5_PBKDF2_HMAC with password len="<<password_utf8.length()<<", salt len="<<salt.size()<<std::endl;
-        std::array<uint8_t, DERIVED_KEY_LENGTH> derived;
-        int success = PKCS5_PBKDF2_HMAC(password_utf8.data(), password_utf8.length(), salt.data(), salt.size(), ITERATIONS, EVP_sha256(), DERIVED_KEY_LENGTH, derived.data());
-        if (success != 1) {
-            std::cerr<<"Error calling PKCS5_PBKDF2_HMAC error="<<success<<std::endl;
-        }
-#endif
 
         std::cout << "Derived: " << BytesToHexString(derived.data(), DERIVED_KEY_LENGTH) << std::endl;
 
@@ -349,15 +326,6 @@ private:
         return result;
     }
 
-    static std::vector<uint8_t> generateSalt(size_t length)
-    {
-        std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> rbe;
-        std::vector<uint8_t> salt(length);
-        std::generate(begin(salt), end(salt), std::ref(rbe));
-
-        return salt;
-    }
-
     std::array<uint8_t, KEYLEN> encryptionKey;
     std::array<uint8_t, KEYLEN> hmacKey;
     std::array<uint8_t, IVLEN> iv;
@@ -365,624 +333,17 @@ private:
 
 }
 
-#if 0
-
-public class CypherAES256 implements CypherInterface
-{
-    Logger logger = LoggerFactory.getLogger(CypherAES256.class);
-
-    public final static String CYPHER_ID = "AES256";
-    //public final static int AES_KEYLEN = 256;
-    public final static String CHAR_ENCODING = "UTF-8";
-    public final static String KEYGEN_ALGO = "HmacSHA256";
-    public final static String CYPHER_KEY_ALGO = "AES";
-    public static final String CYPHER_ALGO = "AES/CTR/NoPadding";
-
-    public byte[] calculateHMAC(byte[] key, byte[] data) throws IOException
-    {
-        byte[] computedMac = null;
-
-        try
-        {
-            SecretKeySpec hmacKey = new SecretKeySpec(key, KEYGEN_ALGO);
-            Mac mac = Mac.getInstance(KEYGEN_ALGO);
-            mac.init(hmacKey);
-            computedMac = mac.doFinal(data);
-        }
-        catch (Exception ex)
-        {
-            throw new IOException("Error decrypting HMAC hash: " + ex.getMessage());
-        }
-
-        return computedMac;
-    }
-
-    public boolean verifyHMAC(byte[] hmac, byte[] key, byte[] data) throws IOException
-    {
-        boolean matches = false;
-        byte[] calculated = calculateHMAC(key, data);
-        return Arrays.equals(hmac, calculated);
-    }
-
-    public int paddingLength(byte[] decrypted)
-    {
-        if (decrypted.length == 0)
-        {
-            logger.debug("Empty decoded text has no padding.");
-            return 0;
-        }
-
-        logger.debug("Padding length: {}", decrypted[decrypted.length - 1]);
-        return decrypted[decrypted.length - 1];
-    }
-
-    public byte[] unpad(byte[] decrypted)
-    {
-        int length = decrypted.length - paddingLength(decrypted);
-        return Arrays.copyOfRange(decrypted, 0, length);
-    }
-
-    public byte[] pad(byte[] cleartext) throws IOException
-    {
-        byte[] padded = null;
-
-        try
-        {
-            int blockSize = Cipher.getInstance(CYPHER_ALGO).getBlockSize();
-            logger.debug("Padding to block size: {}", blockSize);
-            int padding_length = (blockSize - (cleartext.length % blockSize));
-            if (padding_length == 0)
-            {
-                padding_length = blockSize;
-            }
-            padded = Arrays.copyOf(cleartext, cleartext.length + padding_length);
-            padded[padded.length - 1] = (byte) padding_length;
-
-        }
-        catch (Exception ex)
-        {
-            new IOException("Error calculating padding for " + CYPHER_ALGO + ": " + ex.getMessage());
-        }
-
-        return padded;
-    }
-
-    public byte[] decryptAES(byte[] cypher, byte[] key, byte[] iv) throws IOException
-    {
-
-        SecretKeySpec keySpec = new SecretKeySpec(key, CYPHER_KEY_ALGO);
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
-        try
-        {
-            Cipher cipher = Cipher.getInstance(CYPHER_ALGO);
-            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-            byte[] decrypted = cipher.doFinal(cypher);
-            return unpad(decrypted);
-        }
-        catch (Exception ex)
-        {
-            throw new IOException("Failed to decrypt data: " + ex.getMessage());
-        }
-    }
-
-    public byte[] encryptAES(byte[] cleartext, byte[] key, byte[] iv) throws IOException
-    {
-        SecretKeySpec keySpec = new SecretKeySpec(key, CYPHER_KEY_ALGO);
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
-        try
-        {
-            Cipher cipher = Cipher.getInstance(CYPHER_ALGO);
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
-            byte[] encrypted = cipher.doFinal(cleartext);
-            return encrypted;
-        }
-        catch (Exception ex)
-        {
-            throw new IOException("Failed to encrypt data: " + ex.getMessage());
-        }
-    }
-
-    public byte[] decrypt(byte[] encryptedData, String password) throws IOException
-    {
-        byte[] decrypted = null;
-
-        VaultContent vaultContent = new VaultContent(encryptedData);
-
-        byte[] salt = vaultContent.getSalt();
-        byte[] hmac = vaultContent.getHmac();
-        byte[] cypher = vaultContent.getData();
-        logger.debug("Salt: {} - {}", salt.length, Util.hexit(salt, 100));
-        logger.debug("HMAC: {} - {}", hmac.length, Util.hexit(hmac, 100));
-        logger.debug("Data: {} - {}", cypher.length, Util.hexit(cypher, 100));
-
-        EncryptionKeychain keys = new EncryptionKeychain(salt, password);
-        keys.createKeys();
-
-        byte[] cypherKey = keys.getEncryptionKey();
-        logger.debug("Key 1: {} - {}", cypherKey.length, Util.hexit(cypherKey, 100));
-        byte[] hmacKey = keys.getHmacKey();
-        logger.debug("Key 2: {} - {}", hmacKey.length, Util.hexit(hmacKey, 100));
-        byte[] iv = keys.getIv();
-        logger.debug("IV: {} - {}", iv.length, Util.hexit(iv, 100));
-
-        if (verifyHMAC(hmac, hmacKey, cypher))
-        {
-            logger.debug("Signature matches - decrypting");
-            decrypted = decryptAES(cypher, cypherKey, iv);
-            logger.debug("Decoded:\n{}", new String(decrypted, CHAR_ENCODING));
-        }
-        else
-        {
-            throw new IOException("HMAC Digest doesn't match - possibly it's the wrong password.");
-        }
-
-        return decrypted;
-    }
-
-    public String infoLine()
-    {
-        return VaultInfo.vaultInfoForCypher(CYPHER_ID);
-    }
-}
-
-
-
-
-
-
-
-public class Util
-{
-
-    private static final int DEFAULT_LINE_LENGTH = 80;
-
-    private static Logger logger = LoggerFactory.getLogger(Util.class);
-
-    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
-    final protected static String LINE_BREAK = "\n";
-    final protected static String CHAR_ENCODING = "UTF-8";
-
-    public static String join(String [] datalines)
-    {
-        return String.join("", Arrays.asList(datalines));
-    }
-
-    public static byte[] unhex(String hexed)
-    {
-        int dataLen = hexed.length();
-        byte[] output = new byte[dataLen/2];
-        for (int charIdx = 0; charIdx < dataLen; charIdx+=2) {
-            output[charIdx/2] = (byte) ((Character.digit(hexed.charAt(charIdx), 16) << 4)
-                    + Character.digit(hexed.charAt(charIdx+1), 16));
-        }
-        return output;
-    }
-
-    public static String hexit(byte [] unhexed)
-    {
-        return hexit(unhexed, DEFAULT_LINE_LENGTH);
-    }
-
-    public static String hexit(byte [] unhexed, int lineLength)
-    {
-        String result = "";
-        int colIdx = 0;
-        for (byte val: unhexed)
-        {
-            result += String.format("%02x", val);
-            colIdx++;
-            if (lineLength > 0 && colIdx>=lineLength/2) {
-                result += LINE_BREAK;
-                colIdx=0;
-            }
-        }
-
-        return result;
-    }
-
-    public static VaultInfo getVaultInfo(String vaultData)
-    {
-        String infoString =  vaultData.substring(0, vaultData.indexOf(LINE_BREAK));
-        return new VaultInfo(infoString);
-    }
-
-    public static VaultInfo getVaultInfo(byte [] vaultData)
-    {
-        return getVaultInfo(new String(vaultData));
-    }
-
-    public static String cleanupData(String vaultData)
-    {
-        return vaultData.substring(vaultData.indexOf(LINE_BREAK) + 1);
-    }
-
-    public static byte[] getVaultData(String vaultData)
-    {
-        String rawData = join(cleanupData(vaultData).split(LINE_BREAK));
-        return unhex(rawData);
-    }
-
-    public static byte[] getVaultData(byte [] vaultData)
-    {
-        String rawData = join(cleanupData(new String(vaultData)).split(LINE_BREAK));
-        return unhex(rawData);
-    }
-
-}
-
-
-
-public class VaultInfo
-{
-    Logger logger = LoggerFactory.getLogger(VaultInfo.class);
-
-    public final static String INFO_SEPARATOR = ";";
-    public final static int INFO_ELEMENTS = 3;
-    public final static int MAGIC_PART = 0;
-    public final static int VERSION_PART = 1;
-    public final static int CYPHER_PART = 2;
-
-    public final static String VAULT_MAGIC="$ANSIBLE_VAULT";
-    public final static String VAULT_VERSION="1.1";
-
-    private boolean validVault;
-    private String vaultVersion;
-    private String vaultCypher;
-
-    public static String vaultInfoForCypher(String vaultCypher)
-    {
-        String infoLine = VAULT_MAGIC+";"+VAULT_VERSION+";"+vaultCypher;
-        return infoLine;
-    }
-
-    public VaultInfo(String infoLine)
-    {
-        logger.debug("Ansible Vault info: {}", infoLine);
-
-        String [] infoParts = infoLine.split(INFO_SEPARATOR);
-        if (infoParts.length == INFO_ELEMENTS)
-        {
-            if ( infoParts[MAGIC_PART].equals(VAULT_MAGIC) ) {
-                validVault = true;
-                vaultVersion = infoParts[VERSION_PART];
-                vaultCypher = infoParts[CYPHER_PART];
-            }
-        }
-    }
-
-    public boolean isEncryptedVault()
-    {
-        return validVault;
-    }
-
-    public CypherInterface getCypher()
-    {
-        return CypherFactory.getCypher(vaultCypher);
-    }
-
-    public String getVaultVersion()
-    {
-        return vaultVersion;
-    }
-
-    public boolean isValidVault()
-    {
-        return isEncryptedVault() && getCypher() != null;
-    }
-
-}
-
-
-
-
-
-
-public class VaultHandler
-{
-
-    public final static String DEFAULT_CYPHER = CypherAES256.CYPHER_ID;
-
-    public final static String CHAR_ENCODING = "UTF-8";
-
-
-    public static byte [] encrypt(byte [] cleartext, String password, String cypher) throws IOException
-    {
-        CypherInterface cypherInstance = CypherFactory.getCypher(cypher);
-        byte [] vaultData = cypherInstance.encrypt(cleartext, password);
-        String vaultDataString = new String(vaultData);
-        String vaultPackage = cypherInstance.infoLine() + "\n" + vaultDataString;
-        return vaultPackage.getBytes();
-    }
-
-    public static byte [] encrypt(byte [] cleartext, String password) throws IOException
-    {
-        return encrypt(cleartext, password, DEFAULT_CYPHER);
-    }
-
-    public static void encrypt(InputStream clearText, OutputStream cipherText, String password, String cypher) throws IOException
-    {
-        String clearTextValue = IOUtils.toString(clearText, CHAR_ENCODING);
-        cipherText.write(encrypt(clearTextValue.getBytes(), password, cypher));
-    }
-
-    public static void encrypt(InputStream clearText, OutputStream cipherText, String password) throws IOException
-    {
-        encrypt(clearText, cipherText, password, DEFAULT_CYPHER);
-    }
-
-    public static void decrypt(InputStream encryptedVault, OutputStream decryptedVault, String password) throws IOException
-    {
-        String encryptedValue = IOUtils.toString(encryptedVault, CHAR_ENCODING);
-        decryptedVault.write(decrypt(encryptedValue.getBytes(), password));
-    }
-
-    public static byte[] decrypt(byte[] encrypted, String password) throws IOException
-    {
-
-        VaultInfo vaultInfo = Util.getVaultInfo(encrypted);
-        if ( !vaultInfo.isEncryptedVault() ) {
-            throw new IOException("File is not an Ansible Encrypted Vault");
-        }
-
-        if ( !vaultInfo.isValidVault() )
-        {
-            throw new IOException("The vault is not a format we can handle - check the cypher.");
-        }
-
-        byte [] encryptedData = Util.getVaultData(encrypted);
-
-        return vaultInfo.getCypher().decrypt(encryptedData, password);
-    }
-
-}
-
-
-
-
-
-
-
-
-
-
-
-public class Manager
-{
-    Logger logger = LoggerFactory.getLogger(Manager.class);
-
-    public Manager()
-    {
-
-    }
-
-    public Object getFromYaml(Class objectClass, String yaml) throws YamlException
-    {
-        YamlReader reader = new YamlReader(new StringReader(yaml));
-        return reader.read(objectClass);
-    }
-
-    public String writeToYaml(Object object) throws YamlException
-    {
-        StringWriter resultWriter = new StringWriter();
-        YamlWriter writer = new YamlWriter(resultWriter);
-        writer.write(object);
-        writer.close();
-        return resultWriter.getBuffer().toString();
-    }
-
-    public Object getFromVault(Class objectClass, String yaml, String password) throws IOException
-    {
-        byte [] clearYaml = VaultHandler.decrypt(yaml.getBytes(), password);
-        return getFromYaml(objectClass, new String(clearYaml));
-    }
-
-    public String writeToVault(Object object, String password) throws IOException
-    {
-        String clearYaml = writeToYaml(object);
-        byte [] yamlVault = VaultHandler.encrypt(clearYaml.getBytes(), password);
-        return new String(yamlVault);
-    }
-
-}
-
-#endif
-
-
-
-
-
-
-#if 0
-
-def _unhexlify(b_data):
-    try:
-        return unhexlify(b_data)
-    except (BinasciiError, TypeError) as exc:
-        raise AnsibleVaultFormatError('Vault format unhexlify error: %s' % exc)
-
-
-def _parse_vaulttext(b_vaulttext):
-    b_vaulttext = _unhexlify(b_vaulttext)
-    b_salt, b_crypted_hmac, b_ciphertext = b_vaulttext.split(b"\n", 2)
-    b_salt = _unhexlify(b_salt)
-    b_ciphertext = _unhexlify(b_ciphertext)
-
-    return b_ciphertext, b_salt, b_crypted_hmac
-
-
-def parse_vaulttext(b_vaulttext):
-//Parse the vaulttext
-//
-//:arg b_vaulttext: byte str containing the vaulttext (ciphertext, salt, crypted_hmac)
-//:returns: A tuple of byte str of the ciphertext suitable for passing to a
-//    Cipher class's decrypt() function, a byte str of the salt,
-//    and a byte str of the crypted_hmac
-//:raises: AnsibleVaultFormatError: if the vaulttext format is invalid
-# SPLIT SALT, DIGEST, AND DATA
-try:
-    return _parse_vaulttext(b_vaulttext)
-except AnsibleVaultFormatError:
-    raise
-except Exception as exc:
-    msg = "Vault vaulttext format error: %s" % exc
-    raise AnsibleVaultFormatError(msg)
-
-
-
-def _create_key_cryptography(b_password, b_salt, key_length, iv_length):
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=2 * key_length + iv_length,
-        salt=b_salt,
-        iterations=10000,
-        backend=CRYPTOGRAPHY_BACKEND)
-    b_derivedkey = kdf.derive(b_password)
-
-    return b_derivedkey
-
-@classmethod
-def _gen_key_initctr(cls, b_password, b_salt):
-    # 16 for AES 128, 32 for AES256
-    key_length = 32
-
-    if HAS_CRYPTOGRAPHY:
-        # AES is a 128-bit block cipher, so IVs and counter nonces are 16 bytes
-        iv_length = algorithms.AES.block_size // 8
-
-        b_derivedkey = cls._create_key_cryptography(b_password, b_salt, key_length, iv_length)
-        b_iv = b_derivedkey[(key_length * 2):(key_length * 2) + iv_length]
-    else:
-        raise AnsibleError(NEED_CRYPTO_LIBRARY + '(Detected in initctr)')
-
-    b_key1 = b_derivedkey[:key_length]
-    b_key2 = b_derivedkey[key_length:(key_length * 2)]
-
-    return b_key1, b_key2, b_iv
-
-@staticmethod
-def _encrypt_cryptography(b_plaintext, b_key1, b_key2, b_iv):
-    cipher = C_Cipher(algorithms.AES(b_key1), modes.CTR(b_iv), CRYPTOGRAPHY_BACKEND)
-    encryptor = cipher.encryptor()
-    padder = padding.PKCS7(algorithms.AES.block_size).padder()
-    b_ciphertext = encryptor.update(padder.update(b_plaintext) + padder.finalize())
-    b_ciphertext += encryptor.finalize()
-
-    # COMBINE SALT, DIGEST AND DATA
-    hmac = HMAC(b_key2, hashes.SHA256(), CRYPTOGRAPHY_BACKEND)
-    hmac.update(b_ciphertext)
-    b_hmac = hmac.finalize()
-
-    return to_bytes(hexlify(b_hmac), errors='surrogate_or_strict'), hexlify(b_ciphertext)
-
-@classmethod
-def encrypt(cls, b_plaintext, secret, salt=None):
-
-    if secret is None:
-        raise AnsibleVaultError('The secret passed to encrypt() was None')
-
-    if salt is None:
-        b_salt = os.urandom(32)
-    elif not salt:
-        raise AnsibleVaultError('Empty or invalid salt passed to encrypt()')
-    else:
-        b_salt = to_bytes(salt)
-
-    b_password = secret.bytes
-    b_key1, b_key2, b_iv = cls._gen_key_initctr(b_password, b_salt)
-
-    if HAS_CRYPTOGRAPHY:
-        b_hmac, b_ciphertext = cls._encrypt_cryptography(b_plaintext, b_key1, b_key2, b_iv)
-    else:
-        raise AnsibleError(NEED_CRYPTO_LIBRARY + '(Detected in encrypt)')
-
-    b_vaulttext = b'\n'.join([hexlify(b_salt), b_hmac, b_ciphertext])
-    # Unnecessary but getting rid of it is a backwards incompatible vault
-    # format change
-    b_vaulttext = hexlify(b_vaulttext)
-    return b_vaulttext
-
-@classmethod
-def _decrypt_cryptography(cls, b_ciphertext, b_crypted_hmac, b_key1, b_key2, b_iv):
-    // b_key1, b_key2, b_iv = self._gen_key_initctr(b_password, b_salt)
-    // EXIT EARLY IF DIGEST DOESN'T MATCH
-    hmac = HMAC(b_key2, hashes.SHA256(), CRYPTOGRAPHY_BACKEND)
-    hmac.update(b_ciphertext)
-    try:
-        hmac.verify(_unhexlify(b_crypted_hmac))
-    except InvalidSignature as e:
-        raise AnsibleVaultError('HMAC verification failed: %s' % e)
-
-    cipher = C_Cipher(algorithms.AES(b_key1), modes.CTR(b_iv), CRYPTOGRAPHY_BACKEND)
-    decryptor = cipher.decryptor()
-    unpadder = padding.PKCS7(128).unpadder()
-    b_plaintext = unpadder.update(
-        decryptor.update(b_ciphertext) + decryptor.finalize()
-    ) + unpadder.finalize()
-
-    return b_plaintext
-
-@staticmethod
-def _is_equal(b_a, b_b):
-    // Comparing 2 byte arrays in constant time to avoid timing attacks.
-    //
-    // It would be nice if there were a library for this but hey.
-    // if not (isinstance(b_a, binary_type) and isinstance(b_b, binary_type)):
-    //    raise TypeError('_is_equal can only be used to compare two byte strings')
-
-    # http://codahale.com/a-lesson-in-timing-attacks/
-    if len(b_a) != len(b_b):
-        return False
-
-    result = 0
-    for b_x, b_y in zip(b_a, b_b):
-        result |= b_x ^ b_y
-    return result == 0
-
-@classmethod
-def decrypt(cls, b_vaulttext, secret):
-
-    b_ciphertext, b_salt, b_crypted_hmac = parse_vaulttext(b_vaulttext)
-
-    # TODO: would be nice if a VaultSecret could be passed directly to _decrypt_*
-    #       (move _gen_key_initctr() to a AES256 VaultSecret or VaultContext impl?)
-    # though, likely needs to be python cryptography specific impl that basically
-    # creates a Cipher() with b_key1, a Mode.CTR() with b_iv, and a HMAC() with sign key b_key2
-    b_password = secret.bytes
-
-    b_key1, b_key2, b_iv = cls._gen_key_initctr(b_password, b_salt)
-
-    if HAS_CRYPTOGRAPHY:
-        b_plaintext = cls._decrypt_cryptography(b_ciphertext, b_crypted_hmac, b_key1, b_key2, b_iv)
-    else:
-        raise AnsibleError(NEED_CRYPTO_LIBRARY + '(Detected in decrypt)')
-
-    return b_plaintext
-
-#endif
-
 namespace {
 
-// Vault implementation using AES-CTR with an HMAC-SHA256 authentication code.
-// Keys are derived using PBKDF2
-// http://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
-class VaultAES256 {
-public:
-
-};
-
-
-/*auto print = [](auto const& view)
+template <size_t N>
+void CopyStringToBytes(std::string_view value, std::array<uint8_t, N>& out_bytes)
 {
-    for (std::cout << "{ "; const auto element : view)
-        std::cout << element;
-    std::cout << " } ";
-};
+  out_bytes.fill(0);
 
-void split_new_lines(std::string_view input, std::ostringstream& output)
-{
-    constexpr std::string_view delim { " " };
-    std::ranges::for_each(input | std::views::lazy_split(delim), print);
-}*/
+  for (size_t i = 0; i < N && i < 32; i++) {
+    out_bytes[i] = value.data()[i];
+  }
+}
 
 void output_to_string_wrap_80_characters(std::string_view input, std::ostringstream& output)
 {
@@ -1002,7 +363,55 @@ void output_to_string_wrap_80_characters(std::string_view input, std::ostringstr
 
 }
 
+namespace PKCS7 {
+
+// 128 bit or 16 bytes
+const size_t BLOCK_SIZE_BYTES = 16;
+
+size_t GetPadLength(size_t cipher_length)
+{
+  size_t padding_length = (BLOCK_SIZE_BYTES - (cipher_length % BLOCK_SIZE_BYTES));
+
+  if (padding_length == 0)
+{
+    padding_length = BLOCK_SIZE_BYTES;
+  }
+
+  return padding_length;
+    }
+
+size_t GetUnpaddedLength(const uint8_t* decrypted, size_t decrypted_length)
+{
+  const size_t pad_length = decrypted[decrypted_length - 1];
+
+  if (pad_length > decrypted_length) {
+    return 0;
+    }
+
+  return decrypted_length - pad_length;
+    }
+
+std::vector<uint8_t> pad(std::string_view plain_text_utf8)
+{
+  const size_t padded_length = GetPadLength(plain_text_utf8.length());
+  std::cout<<"pad padded_length: "<<padded_length<<std::endl;
+
+  // Create an padded vector with all the bytes set to the padded length
+  std::vector<uint8_t> padded(plain_text_utf8.length() + padded_length, uint8_t(padded_length));
+
+  // Then copy our plain text data over the unpadded part at the start
+  memcpy(padded.data(), plain_text_utf8.data(), plain_text_utf8.length());
+
+  return padded;
+}
+
+}
+
 namespace vault {
+
+// Vault implementation using AES-CTR with an HMAC-SHA256 authentication code.
+// Keys are derived using PBKDF2
+// http://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
 
 const std::string VAULT_MAGIC = "$ANSIBLE_VAULT";
 const std::string VAULT_VERSION = "1.1";
@@ -1012,202 +421,6 @@ bool is_encrypted(const std::string_view& content)
 {
   return content.starts_with(VAULT_MAGIC);
 }
-
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, ENCRYPTION_METHOD encryption_method, std::string_view password_utf8, std::optional<std::string_view> salt_utf8, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
-{
-    output_utf8.clear();
-
-    if (is_encrypted(plain_text_utf8)) {
-        return ENCRYPT_RESULT::ERROR_ALREADY_ENCRYPTED;
-    }
-
-    // Encrypt the content
-    vault::SHA256 sha256;
-    const std::string encrypted = sha256.encrypt(plain_text_utf8, password_utf8, salt_utf8);
-
-    #if 0
-    std::string tempSalt;
-    if (!salt_utf8.has_value()) {
-        tempSalt = generateSalt(SALT_LENGTH);
-        salt_utf8 = tempSalt;
-    }
-    EncryptionKeychain keys = new EncryptionKeychain(salt_utf8, password_utf8);
-    keys.createKeys();
-    byte[] cypherKey = keys.getEncryptionKey();
-    logger.debug("Key 1: {} - {}", cypherKey.length, Util.hexit(cypherKey, 100));
-    byte[] hmacKey = keys.getHmacKey();
-    logger.debug("Key 2: {} - {}", hmacKey.length, Util.hexit(hmacKey, 100));
-    byte[] iv = keys.getIv();
-    logger.debug("IV: {} - {}", iv.length, Util.hexit(iv, 100));
-    logger.debug("Original data length: {}", data.length);
-    data = pad(data);
-    logger.debug("Padded data length: {}", data.length);
-    const std::string encrypted = encryptAES(data, keys.getEncryptionKey(), keys.getIv());
-    byte[] hmacHash = calculateHMAC(keys.getHmacKey(), encrypted);
-    VaultContent vaultContent = new VaultContent(keys.getSalt(), hmacHash, encrypted);
-    return vaultContent.toByteArray();
-    }
-    #endif
-
-
-    // Write the header
-    output_utf8<<VAULT_MAGIC<<";"<<VAULT_VERSION<<";"<<VAULT_CIPHER_AES256<<"\n";
-
-    // Write the encrypted data
-    output_to_string_wrap_80_characters(encrypted, output_utf8);
-
-    return ENCRYPT_RESULT::OK;
-}
-
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
-{
-    return encrypt(plain_text_utf8, ENCRYPTION_METHOD::AES256, password_utf8, std::nullopt, std::nullopt, output_utf8);
-}
-
-#if 0
-/*
-def format_vaulttext_envelope(b_ciphertext, cipher_name, version=None, vault_id=None):
-    """ Add header and format to 80 columns
-
-        :arg b_ciphertext: the encrypted and hexlified data as a byte string
-        :arg cipher_name: unicode cipher name (for ex, u'AES256')
-        :arg version: unicode vault version (for ex, '1.2'). Optional ('1.1' is default)
-        :arg vault_id: unicode vault identifier. If provided, the version will be bumped to 1.2.
-        :returns: a byte str that should be dumped into a file.  It's
-            formatted to 80 char columns and has the header prepended
-    """
-
-    if not cipher_name:
-        raise AnsibleError("the cipher must be set before adding a header")
-
-    version = version or '1.1'
-
-    # If we specify a vault_id, use format version 1.2. For no vault_id, stick to 1.1
-    if vault_id and vault_id != u'default':
-        version = '1.2'
-
-    b_version = to_bytes(version, 'utf-8', errors='strict')
-    b_vault_id = to_bytes(vault_id, 'utf-8', errors='strict')
-    b_cipher_name = to_bytes(cipher_name, 'utf-8', errors='strict')
-
-    header_parts = [b_HEADER,
-                    b_version,
-                    b_cipher_name]
-
-    if b_version == b'1.2' and b_vault_id:
-        header_parts.append(b_vault_id)
-
-    header = b';'.join(header_parts)
-
-    b_vaulttext = [header]
-    b_vaulttext += [b_ciphertext[i:i + 80] for i in range(0, len(b_ciphertext), 80)]
-    b_vaulttext += [b'']
-    b_vaulttext = b'\n'.join(b_vaulttext)
-
-    return b_vaulttext
-
-
-
-def _parse_vaulttext_envelope(b_vaulttext_envelope, default_vault_id=None):
-
-    b_tmpdata = b_vaulttext_envelope.splitlines()
-    b_tmpheader = b_tmpdata[0].strip().split(b';')
-
-    b_version = b_tmpheader[1].strip()
-    cipher_name = to_text(b_tmpheader[2].strip())
-    vault_id = default_vault_id
-
-    # Only attempt to find vault_id if the vault file is version 1.2 or newer
-    # if self.b_version == b'1.2':
-    if len(b_tmpheader) >= 4:
-        vault_id = to_text(b_tmpheader[3].strip())
-
-    b_ciphertext = b''.join(b_tmpdata[1:])
-
-    return b_ciphertext, b_version, cipher_name, vault_id
-
-
-def parse_vaulttext_envelope(b_vaulttext_envelope, default_vault_id=None, filename=None):
-
-    """Parse the vaulttext envelope
-
-    When data is saved, it has a header prepended and is formatted into 80
-    character lines.  This method extracts the information from the header
-    and then removes the header and the inserted newlines.  The string returned
-    is suitable for processing by the Cipher classes.
-
-    :arg b_vaulttext: byte str containing the data from a save file
-    :kwarg default_vault_id: The vault_id name to use if the vaulttext does not provide one.
-    :kwarg filename: The filename that the data came from.  This is only
-        used to make better error messages in case the data cannot be
-        decrypted. This is optional.
-    :returns: A tuple of byte str of the vaulttext suitable to pass to parse_vaultext,
-        a byte str of the vault format version,
-        the name of the cipher used, and the vault_id.
-    :raises: AnsibleVaultFormatError: if the vaulttext_envelope format is invalid
-    """
-    # used by decrypt
-    default_vault_id = default_vault_id or C.DEFAULT_VAULT_IDENTITY
-
-    try:
-        return _parse_vaulttext_envelope(b_vaulttext_envelope, default_vault_id)
-    except Exception as exc:
-        msg = "Vault envelope format error"
-        if filename:
-            msg += ' in %s' % (filename)
-        msg += ': %s' % exc
-        raise AnsibleVaultFormatError(msg)
-
-
-
-
-
-
-
-    def test_format_vaulttext_envelope(self):
-        cipher_name = "TEST"
-        b_ciphertext = b"ansible"
-        b_vaulttext = vault.format_vaulttext_envelope(b_ciphertext,
-                                                      cipher_name,
-                                                      version=self.v.b_version,
-                                                      vault_id='default')
-        b_lines = b_vaulttext.split(b'\n');
-        self.assertGreater(len(b_lines), 1, msg="failed to properly add header")
-
-        b_header = b_lines[0]
-        # self.assertTrue(b_header.endswith(b';TEST'), msg="header does not end with cipher name")
-
-        b_header_parts = b_header.split(b';')
-        self.assertEqual(len(b_header_parts), 4, msg="header has the wrong number of parts")
-        self.assertEqual(b_header_parts[0], b'$ANSIBLE_VAULT', msg="header does not start with $ANSIBLE_VAULT")
-        self.assertEqual(b_header_parts[1], self.v.b_version, msg="header version is incorrect")
-        self.assertEqual(b_header_parts[2], b'TEST', msg="header does not end with cipher name")
-
-        # And just to verify, lets parse the results and compare
-        b_ciphertext2, b_version2, cipher_name2, vault_id2 = \
-            vault.parse_vaulttext_envelope(b_vaulttext)
-        self.assertEqual(b_ciphertext, b_ciphertext2)
-        self.assertEqual(self.v.b_version, b_version2)
-        self.assertEqual(cipher_name, cipher_name2)
-        self.assertEqual('default', vault_id2)
-
-    def test_parse_vaulttext_envelope(self):
-        b_vaulttext = b"$ANSIBLE_VAULT;9.9;TEST\nansible"
-        b_ciphertext, b_version, cipher_name, vault_id = vault.parse_vaulttext_envelope(b_vaulttext)
-        b_lines = b_ciphertext.split(b'\n')
-        self.assertEqual(b_lines[0], b"ansible", msg="Payload was not properly split from the header")
-        self.assertEqual(cipher_name, u'TEST', msg="cipher name was not properly set")
-        self.assertEqual(b_version, b"9.9", msg="version was not properly set")
-
-    def test_parse_vaulttext_envelope_crlf(self):
-        b_vaulttext = b"$ANSIBLE_VAULT;9.9;TEST\r\nansible"
-        b_ciphertext, b_version, cipher_name, vault_id = vault.parse_vaulttext_envelope(b_vaulttext)
-        b_lines = b_ciphertext.split(b'\n')
-        self.assertEqual(b_lines[0], b"ansible", msg="Payload was not properly split from the header")
-        self.assertEqual(cipher_name, u'TEST', msg="cipher name was not properly set")
-        self.assertEqual(b_version, b"9.9", msg="version was not properly set")
-*/
-#endif
 
 
 VaultInfo::VaultInfo() :
@@ -1326,7 +539,6 @@ std::cout<<"calculateHMAC hmac_key length: "<<hmac_key.size()<<", data length: "
 
     out_hmac.fill(0);
 
-#if 1
     try {
         CryptoPP::HMAC<CryptoPP::SHA256> hmac((const CryptoPP::byte*)hmac_key.data(), hmac_key.size());
 
@@ -1344,52 +556,6 @@ std::cout<<"calculateHMAC b"<<std::endl;
         std::cerr<<e.what()<<std::endl;
         return false;
     }
-#else
-    EVP_PKEY *pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, hmac_key.data(), hmac_key.size());
-    if (pkey == nullptr) {
-        std::cerr<<"calculateHMAC Error creating key"<<std::endl;
-        return false;
-    }
-
-    int rc = 0;
-
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    if (ctx == nullptr) {
-        std::cerr<<"EVP_MD_CTX_create failed, error 0x"<<std::setfill('0')<<std::setw(32)<<std::hex<<ERR_get_error()<<std::endl;
-    } else {
-        rc = EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, pkey);
-        if (rc != 1) {
-            std::cerr<<"EVP_DigestSignInit failed, error 0x"<<std::setfill('0')<<std::setw(32)<<std::hex<<ERR_get_error()<<std::endl;
-        } else {
-            rc = EVP_DigestSignUpdate(ctx, data.data(), data.size());
-            if (rc != 1) {
-                std::cerr<<"EVP_DigestSignUpdate failed, error 0x"<<std::setfill('0')<<std::setw(32)<<std::hex<<ERR_get_error()<<std::endl;
-            } else {
-                unsigned char buff[EVP_MAX_MD_SIZE];
-                size_t size = sizeof(buff);
-                rc = EVP_DigestSignFinal(ctx, buff, &size);
-                if (rc != 1) {
-                    std::cerr<<"EVP_DigestSignFinal failed, error 0x"<<std::setfill('0')<<std::setw(32)<<std::hex<<ERR_get_error()<<std::endl;
-                } else {
-                    std::cout<<"Copying key of length "<<size<<std::endl;
-                    for (size_t i = 0; i < std::min<size_t>(size, out_hmac.size()); i++) {
-                        out_hmac[i] = buff[i];
-                    }
-                }
-            }
-        }
-
-        EVP_MD_CTX_free(ctx);
-        ctx = nullptr;
-    }
-
-    EVP_PKEY_free(pkey);
-    pkey = nullptr;
-
-    if (rc != 1) {
-        return false;
-    }
-#endif
 
 std::cout<<"calculateHMAC returning true"<<std::endl;
     return true;
@@ -1414,220 +580,73 @@ bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<u
 }
 
 
-
-
-//public final static String CYPHER_ID = "AES256";
-//public final static String KEYGEN_ALGO = "HmacSHA256";
-//public final static String CYPHER_KEY_ALGO = "AES";
-//public static final String CYPHER_ALGO = "AES/CTR/NoPadding";
-
-
-
-// g++ -g3 -ggdb -O0 -DDEBUG -I/usr/include/cryptopp Driver.cpp -o Driver.exe -lcryptopp -lpthread
-// g++ -g -O2 -DNDEBUG -I/usr/include/cryptopp Driver.cpp -o Driver.exe -lcryptopp -lpthread
-
-#if 0
-
-#include "osrng.h"
-using CryptoPP::AutoSeededRandomPool;
-
-#include <iostream>
-using std::cout;
-using std::cerr;
-using std::endl;
-
-#include <string>
-using std::string;
-
-#include <cstdlib>
-using std::exit;
-
-#include "cryptlib.h"
-using CryptoPP::Exception;
-
-#include "hex.h"
-using CryptoPP::HexEncoder;
-using CryptoPP::HexDecoder;
-
-#include "filters.h"
-using CryptoPP::StringSink;
-using CryptoPP::StringSource;
-using CryptoPP::StreamTransformationFilter;
-
-#include "aes.h"
-using CryptoPP::AES;
-
-#include "ccm.h"
-using CryptoPP::CTR_Mode;
-
-#include "assert.h"
-
-int main(int argc, char* argv[])
-{
-  AutoSeededRandomPool prng;
-
-  byte key[AES::DEFAULT_KEYLENGTH];
-  prng.GenerateBlock(key, sizeof(key));
-
-  byte iv[AES::BLOCKSIZE];
-  prng.GenerateBlock(iv, sizeof(iv));
-
-  string plain = "CTR Mode Test";
-  string cipher, encoded, recovered;
-
-  /*********************************\
-  \*********************************/
-
-  // Pretty print key
-  encoded.clear();
-  StringSource(key, sizeof(key), true,
-    new HexEncoder(
-      new StringSink(encoded)
-    ) // HexEncoder
-  ); // StringSource
-  cout << "key: " << encoded << endl;
-
-  // Pretty print iv
-  encoded.clear();
-  StringSource(iv, sizeof(iv), true,
-    new HexEncoder(
-      new StringSink(encoded)
-    ) // HexEncoder
-  ); // StringSource
-  cout << "iv: " << encoded << endl;
-
-  /*********************************\
-  \*********************************/
-
-  try
-  {
-    cout << "plain text: " << plain << endl;
-
-    CTR_Mode< AES >::Encryption e;
-    e.SetKeyWithIV(key, sizeof(key), iv);
-
-    // The StreamTransformationFilter adds padding
-    //  as required. ECB and CBC Mode must be padded
-    //  to the block size of the cipher.
-    StringSource(plain, true, 
-      new StreamTransformationFilter(e,
-        new StringSink(cipher)
-      ) // StreamTransformationFilter      
-    ); // StringSource
-  }
-  catch(const CryptoPP::Exception& e)
-  {
-    cerr << e.what() << endl;
-    exit(1);
-  }
-
-  /*********************************\
-  \*********************************/
-
-  // Pretty print
-  encoded.clear();
-  StringSource(cipher, true,
-    new HexEncoder(
-      new StringSink(encoded)
-    ) // HexEncoder
-  ); // StringSource
-  cout << "cipher text: " << encoded << endl;
-
-  /*********************************\
-  \*********************************/
-
-  try
-  {
-    CTR_Mode< AES >::Decryption d;
-    d.SetKeyWithIV(key, sizeof(key), iv);
-
-    // The StreamTransformationFilter removes
-    //  padding as required.
-    StringSource s(cipher, true, 
-      new StreamTransformationFilter(d,
-        new StringSink(recovered)
-      ) // StreamTransformationFilter
-    ); // StringSource
-
-    cout << "recovered text: " << recovered << endl;
-  }
-  catch(const CryptoPP::Exception& e)
-  {
-    cerr << e.what() << endl;
-    exit(1);
-  }
-
-  /*********************************\
-  \*********************************/
-
-  return 0;
-}
-
-#endif
-
-namespace openssl {
-
-/**
- * Create a 256 bit key and IV using the supplied key_data. salt can be added for taste.
- * Fills in the encryption and decryption ctx objects and returns 0 on success
- **/
-int aes_init(const std::array<uint8_t, 32>& key, const std::array<uint8_t, 16>& iv, EVP_CIPHER_CTX *d_ctx)
-{
-  EVP_CIPHER_CTX_init(d_ctx);
-  EVP_DecryptInit_ex(d_ctx, EVP_aes_256_ctr(), NULL, key.data(), iv.data());
-
-  return 0;
-}
-
-unsigned char * aes_decrypt(EVP_CIPHER_CTX *e, const unsigned char *ciphertext, int *len)
-{
-  /* plaintext will always be equal to or lesser than length of ciphertext*/
-  int p_len = *len;
-  int f_len = 0;
-  unsigned char *plaintext = (unsigned char*)malloc(p_len);
-
-  EVP_DecryptInit_ex(e, nullptr, nullptr, nullptr, nullptr);
-  EVP_DecryptUpdate(e, plaintext, &p_len, ciphertext, *len);
-  EVP_DecryptFinal_ex(e, plaintext+p_len, &f_len);
-
-  *len = p_len + f_len;
-
-  std::cout<<"aes_decrypt len="<<*len<<", p_len="<<p_len<<", f_len="<<f_len<<std::endl;
-
-  return plaintext;
-}
-
-}
-
-namespace PKCS7 {
-
-size_t GetPadLength(size_t cipher_length)
-{
-  return cipher_length + (16 - (cipher_length % 16));
-}
-
-size_t GetUnpaddedLength(const uint8_t* decrypted, size_t decrypted_length)
-{
-  const size_t pad_length = decrypted[decrypted_length - 1];
-  std::cout<<"GetUnpaddedLength pad_length: "<<pad_length<<std::endl;
-
-  if (pad_length > decrypted_length) {
-    return 0;
-  }
-
-  return decrypted_length - pad_length;
-}
-
-}
-
 std::string string_to_hex(const char* text, size_t length)
 {
   std::ostringstream o;
   for (size_t i = 0; i < length; i++) {
     o<<std::setfill('0')<<std::setw(2)<<std::hex<<int(text[i]);
-  }
+}
 
   return o.str();
+}
+
+bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t, 32>& _key, const std::array<uint8_t, 16>& _iv, std::vector<uint8_t>& out_encrypted)
+{
+  std::cout<<"encryptAES _plaintext length: "<<_plaintext.size()<<std::endl;
+  out_encrypted.clear();
+
+  if (_key.size() != 32) {
+    std::cerr<<"encryptAES Key is the wrong size"<<std::endl;
+    return false;
+  } else if (_iv.size() != CryptoPP::AES::BLOCKSIZE) {
+    std::cerr<<"encryptAES IV is the wrong size"<<std::endl;
+    return false;
+  }
+
+  CryptoPP::byte key[32];
+  for (size_t i = 0; i < 32; i++) {
+    key[i] = static_cast<CryptoPP::byte>(_key[i]);
+}
+
+  CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
+  for (size_t i = 0; i < CryptoPP::AES::BLOCKSIZE; i++) {
+    iv[i] = static_cast<CryptoPP::byte>(_iv[i]);
+}
+
+  std::ostringstream plain;
+  for (auto& c : _plaintext) {
+    plain<<c;
+  }
+
+  std::cout<<"encryptAES plain length: "<<plain.str().length()<<std::endl;
+
+  std::string cipher;
+
+  try {
+    CryptoPP::CTR_Mode<CryptoPP::AES>::Encryption e;
+    e.SetKeyWithIV(key, sizeof(key), iv);
+
+    // The StreamTransformationFilter adds padding
+    //  as required. ECB and CBC Mode must be padded
+    //  to the block size of the cipher.
+    CryptoPP::StringSource(plain.str(), true, 
+      new CryptoPP::StreamTransformationFilter(e,
+        new CryptoPP::StringSink(cipher)
+      )      
+    );
+  } catch(const CryptoPP::Exception& e) {
+      std::cerr<<e.what()<<std::endl;
+      return false;
+  }
+
+  std::cout<<"encryptAES cipher length: "<<cipher.length()<<", text: "<<cipher<<std::endl;
+
+  for (size_t i = 0; i < cipher.length(); i++) {
+    out_encrypted.push_back(cipher[i]);
+  }
+
+  std::cout<<"encryptAES Encoded length: "<<out_encrypted.size()<<", text: "<<(const char*)(out_encrypted.data())<<std::endl;
+  return true;
 }
 
 bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 32>& _key, const std::array<uint8_t, 16>& _iv, std::vector<uint8_t>& out_decrypted)
@@ -1642,15 +661,6 @@ bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 3
         std::cerr<<"decryptAES IV is the wrong size"<<std::endl;
         return false;
     }
-
-    /*SecretKeySpec keySpec = new SecretKeySpec(key, CYPHER_KEY_ALGO);
-    IvParameterSpec ivSpec = new IvParameterSpec(iv);
-
-    Cipher cipher = Cipher.getInstance(CYPHER_ALGO);
-    cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-    byte[] decrypted = cipher.doFinal(cypher);
-    out_decrypted = unpad(decrypted);*/
-
 
   CryptoPP::byte key[32];
     for (size_t i = 0; i < 32; i++) {
@@ -1697,33 +707,6 @@ bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 3
                 new CryptoPP::StringSink(recovered)
             )
         );
-#else
-        /* "opaque" encryption, decryption ctx structures that libcrypto uses to record status of enc/dec operations */
-        EVP_CIPHER_CTX* de = EVP_CIPHER_CTX_new();
-        
-        /* gen key and iv. init the cipher ctx object */
-        if (openssl::aes_init(_key, _iv, de)) {
-          printf("Couldn't initialize AES cipher\n");
-          return -1;
-        }
-
-        /* The enc/dec functions deal with binary data and not C strings. strlen() will 
-            return length of the string without counting the '\0' string marker. We always
-            pass in the marker byte to the encrypt/decrypt functions so that after decryption 
-            we end up with a legal C string */
-        int len = _cypher.size();
-        std::cout<<"Cypher: \""<<std::string((const char*)_cypher.data(), _cypher.size())<<"\", length: "<<len<<std::endl;
-
-        const char* plaintext = (const char*)openssl::aes_decrypt(de, _cypher.data(), &len);
-
-        const size_t unpadded_length = PKCS7::GetUnpaddedLength((const uint8_t*)plaintext, _cypher.size());
-        std::cout<<"Decrypted raw: "<<string_to_hex(plaintext, 16)<<std::endl;
-        std::cout<<"Decrypted plaintext: \""<<std::string(plaintext, unpadded_length)<<"\", length: "<<unpadded_length<<std::endl;
-        out_decrypted.assign((const uint8_t*)plaintext, (const uint8_t*)plaintext + unpadded_length);
-
-        free((void*)plaintext);
-
-        EVP_CIPHER_CTX_free(de);
 #endif
     } catch(const CryptoPP::Exception& e) {
         std::cerr<<e.what()<<std::endl;
@@ -1741,6 +724,83 @@ bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 3
 
     std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<(const char*)(out_decrypted.data())<<std::endl;
     return true;
+}
+
+
+
+ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const std::array<uint8_t, 32>& salt, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
+{
+    output_utf8.clear();
+
+    if (is_encrypted(plain_text_utf8)) {
+        return ENCRYPT_RESULT::ERROR_ALREADY_ENCRYPTED;
+    }
+
+    // Encrypt the content
+    EncryptionKeychain keys(salt, password_utf8);
+    keys.createKeys();
+
+    const std::array<uint8_t, KEYLEN> cypherKey = keys.getEncryptionKey();
+    std::ostringstream o1;
+    BytesToHexString(cypherKey, 100, o1);
+    std::cout<<"Key 1: "<<cypherKey.size()<<", "<<o1.str()<<std::endl;
+    const std::array<uint8_t, KEYLEN> hmacKey = keys.getHMACKey();
+    std::ostringstream o2;
+    BytesToHexString(hmacKey, 100, o2);
+    std::cout<<"Key 2: "<<hmacKey.size()<<", "<<o2.str()<<std::endl;
+    const std::array<uint8_t, IVLEN> iv = keys.getIV();
+    std::ostringstream o3;
+    BytesToHexString(iv, 100, o3);
+    std::cout<<"IV: "<<iv.size()<<", "<<o3.str()<<std::endl;
+
+    std::cout<<"Original plain_text_utf8 length: "<<plain_text_utf8.length()<<std::endl;
+    const std::vector<uint8_t> data_padded = PKCS7::pad(plain_text_utf8);
+    std::cout<<"Padded data length: "<<data_padded.size()<<std::endl;
+
+    std::vector<uint8_t> encrypted;
+    if (!encryptAES(data_padded, keys.getEncryptionKey(), keys.getIV(), encrypted)) {
+      std::cerr<<"encrypt Error encrypting with AES"<<std::endl;
+      return ENCRYPT_RESULT::ERROR_AES_ENCRYPTION_FAILED;
+    }
+
+    std::array<uint8_t, 32> hmacHash;
+    if (!calculateHMAC(keys.getHMACKey(), encrypted, hmacHash)) {
+        std::cerr<<"encrypt Error calculating HMAC"<<std::endl;
+        return ENCRYPT_RESULT::ERROR_CALCULATING_HMAC;
+    }
+
+    std::cout<<"Original plain text length: "<<plain_text_utf8.length()<<", padded length: "<<data_padded.size()<<std::endl;
+    std::cout<<"Creating content salt len: "<<salt.size()<<", hmacHash len: "<<hmacHash.size()<<", encrypted len: "<<encrypted.size()<<std::endl;
+
+    std::ostringstream content_hex;
+    BytesToHexString(salt, 10000, content_hex);
+    content_hex<<'\n';
+    BytesToHexString(hmacHash, 10000, content_hex);
+    content_hex<<'\n';
+    BytesToHexString(encrypted, 10000, content_hex);
+  
+
+    // Write the header
+    output_utf8<<VAULT_MAGIC<<";"<<VAULT_VERSION<<";"<<VAULT_CIPHER_AES256<<"\n";
+
+    std::ostringstream content_double_hex;
+    EncodeStringToHexString(content_hex.str(), content_double_hex);
+
+    // Write the content
+    output_to_string_wrap_80_characters(content_double_hex.str(), output_utf8);
+
+    return ENCRYPT_RESULT::OK;
+}
+
+ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const std::array<uint8_t, 32>& salt, std::ostringstream& output_utf8)
+{
+  return encrypt(plain_text_utf8, password_utf8, salt, std::nullopt, output_utf8);
+}
+
+ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
+{
+  const std::array<uint8_t, 32> salt = EncryptionKeychain::generateSalt(SALT_LENGTH);
+  return encrypt(plain_text_utf8, password_utf8, salt, std::nullopt, output_utf8);
 }
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
@@ -1817,9 +877,6 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
     std::cout<<"Decoded: \""<<output_utf8.str()<<"\""<<std::endl;
 
     return DECRYPT_RESULT::OK;
-
-    //std::string output_vault_id_utf8;
-    //return decrypt(encrypted_utf8, password_utf8, std::nullopt, output_vault_id_utf8, output_utf8);
 }
 
 }
