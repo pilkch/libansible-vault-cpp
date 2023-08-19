@@ -19,11 +19,6 @@
 
 #include "ansible_vault.h"
 
-
-// In the cryptopp headers:
-// typedef unsigned char byte;
-
-
 // Explicit memset and constant time memory comparison
 // https://github.com/AGWA/git-crypt/blob/master/util.cpp
 
@@ -866,9 +861,7 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
     std::cout<<"Signature matches - decrypting"<<std::endl;
     std::vector<uint8_t> decrypted;
-    std::vector<uint8_t> temp(cypher);
-    //temp.resize(6);
-    if (!decryptAES(temp, cypherKey, iv, decrypted)) {
+    if (!decryptAES(cypher, cypherKey, iv, decrypted)) {
         std::cerr<<"Error decrypting"<<std::endl;
         return DECRYPT_RESULT::ERROR_DECRYPTING_CONTENT;
     }
