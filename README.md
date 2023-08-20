@@ -3,7 +3,8 @@
 ## About
 
 **Warning: I am not an expert. This library is purely for my own curiosity. Do not use it in production.**  
-I try to use as much third party code. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.
+
+I try to use as much third party code as possible. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.
 
 ## Ansible Vault Format
 
