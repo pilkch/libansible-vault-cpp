@@ -688,13 +688,13 @@ bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 3
         for (auto& c : cbRecoveredText) {
             out_decrypted.push_back(c);
         }
-#elif 0
+#elif 1
         CryptoPP::ArraySource(_cypher.data(), _cypher.size(), true,
             new CryptoPP::StreamTransformationFilter(d,
                 new CryptoPP::StringSink(recovered)
             )
         );
-#elif 0
+#else
         // The StreamTransformationFilter removes
         //  padding as required.
         CryptoPP::StringSource s(cypher.str(), true, 
