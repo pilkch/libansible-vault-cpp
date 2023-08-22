@@ -18,7 +18,7 @@ ENDIF()
 SET(PROJECT_VERSION 0.1)
 
 # Set the project name
-PROJECT(ansible_vault VERSION ${PROJECT_VERSION} DESCRIPTION "Ansible vault encrypt/decrypt library")
+PROJECT(ansible-vault-cpp VERSION ${PROJECT_VERSION} DESCRIPTION "Ansible vault encrypt/decrypt library")
 
 SET(PROJECT_DIRECTORY "./")
 
@@ -99,7 +99,7 @@ ADD_EXECUTABLE(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
 
 SET(LIBRARIES_LINKED_UNITTEST
   ${LIBRARIES_LINKED}
-  ansible_vault
+  ansible-vault-cpp
   cryptopp
   gtest
 )

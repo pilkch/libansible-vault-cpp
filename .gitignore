@@ -1,6 +1,6 @@
 # Ignore binaries
-libansible_vault.so*
-ansible_vault_test
+libansible-vault-cpp.so*
+ansible-vault-cpp_test
 
 # Ignore temporary cmake files
 CMakeCache.txt

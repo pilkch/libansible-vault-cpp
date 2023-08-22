@@ -63,53 +63,6 @@ std::string strip_new_lines(std::string_view view)
     return o.str();
 }
 
-// Decrypt
-//
-// Command line example
-// https://stackoverflow.com/questions/43467180/how-to-decrypt-string-with-ansible-vault-2-3-0
-// Password: 123
-/*
-echo '$ANSIBLE_VAULT;1.1;AES256
-65333363656231663530393762613031336662613262326666386233643763636339366235626334
-3236636366366131383962323463633861653061346538360a386566363337383133613761313566
-31623761656437393862643936373564313565663633636366396231653131386364336534626338
-3430343561626237660a333562616537623035396539343634656439356439616439376630396438
-3730' | ansible-vault decrypt
-*/
-
-/*
-echo '$ANSIBLE_VAULT;1.2;AES256;dev
-30613233633461343837653833666333643061636561303338373661313838333565653635353162
-3263363434623733343538653462613064333634333464660a663633623939393439316636633863
-61636237636537333938306331383339353265363239643939666639386530626330633337633833
-6664656334373166630a363736393262666465663432613932613036303963343263623137386239
-6330' | ansible-vault decrypt
-*/
-
-#if 0
-
-In place encrypt
-ansible-vault encrypt vars/vault.yaml
-
-In place decrypt
-ansible-vault decrypt vars/vault.yaml
-
-
-
-
-// Encrypt
-echo "password" > password.txt
-echo "My plain text file\nMultiple lines\n" > plaintext.txt
-ansible-vault encrypt --vault-password-file password.txt --output output_encrypted.txt plaintext.txt
-
-// Decrypt
-ansible-vault decrypt --vault-password-file password.txt --output output_decrypted.txt output_encrypted.txt
-OR
-(Asks for password)
-ansible-vault decrypt --output sample_decrypted.txt test/data/sample.txt
-
-#endif
-
 namespace vault {
 
 class SHA256 {
@@ -774,7 +727,6 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view passwo
     content_hex<<'\n';
     BytesToHexString(encrypted, 10000, content_hex);
   
-
     // Write the header
     output_utf8<<VAULT_MAGIC<<";"<<VAULT_VERSION<<";"<<VAULT_CIPHER_AES256<<"\n";
 
