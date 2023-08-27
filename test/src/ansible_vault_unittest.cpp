@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "ansible_vault.h"
+#include "util.h"
 
 namespace {
 

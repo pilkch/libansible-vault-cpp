@@ -54,7 +54,7 @@ ENDIF()
 
 # Ansible vault library
 # https://stackoverflow.com/questions/17511496/how-to-create-a-shared-library-with-cmake/45843676#45843676
-SET(PROJECT_SOURCE_FILES src/ansible_vault.cpp)
+SET(PROJECT_SOURCE_FILES src/ansible_vault.cpp src/util.cpp)
 ADD_LIBRARY(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_FILES})
 
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
