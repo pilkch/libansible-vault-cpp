@@ -18,6 +18,7 @@
 #include <cryptopp/sha.h>
 
 #include "ansible_vault.h"
+#include "hex.h"
 #include "util.h"
 
 std::string strip_new_lines(std::string_view view)
