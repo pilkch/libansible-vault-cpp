@@ -1,4 +1,5 @@
 #include <cstring>
+#include <sstream>
 
 #include "util.h"
 
@@ -51,6 +52,20 @@ bool leakless_equals(const unsigned char* a, const unsigned char* b, std::size_t
 bool leakless_equals(const void* a, const void* b, std::size_t len)
 {
   return leakless_equals(reinterpret_cast<const unsigned char*>(a), reinterpret_cast<const unsigned char*>(b), len);
+}
+
+
+std::string strip_new_lines(std::string_view view)
+{
+  std::ostringstream o;
+
+  for (auto& c : view) {
+    if (c != '\n') {
+      o<<c;
+    }
+  }
+
+  return o.str();
 }
 
 }

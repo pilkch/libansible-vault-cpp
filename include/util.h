@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
+#include <string_view>
 
 namespace vault {
 
@@ -18,5 +20,7 @@ void secure_clear(void* data, size_t size) noexcept;
 bool leakless_equals(const unsigned char* a, const unsigned char* b, std::size_t len);
 bool leakless_equals(const void* a, const void* b, std::size_t len);
 
+
+std::string strip_new_lines(std::string_view view);
 
 }
