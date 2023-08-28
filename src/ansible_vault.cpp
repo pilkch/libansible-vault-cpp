@@ -21,6 +21,36 @@
 #include "hex.h"
 #include "util.h"
 
+namespace {
+
+template <size_t N>
+void CopyStringToBytes(std::string_view value, std::array<uint8_t, N>& out_bytes)
+{
+  out_bytes.fill(0);
+
+  for (size_t i = 0; i < N && i < 32; i++) {
+    out_bytes[i] = value.data()[i];
+  }
+}
+
+void output_to_string_wrap_80_characters(std::string_view input, std::ostringstream& output)
+{
+    const size_t max_line_length = 80;
+
+    while (!input.empty()) {
+        // Get up to 32 more characters from the string
+        const size_t line_length = std::min<size_t>(input.length(), max_line_length);
+        if (input.length() > max_line_length) output<<input.substr(0, line_length)<<"\n";
+        else {
+            // This is the last line
+            output<<input.substr(0, line_length);
+        }
+        input.remove_prefix(line_length);
+    }
+}
+
+}
+
 namespace vault {
 
 const size_t SALT_LENGTH = 32;
@@ -29,8 +59,6 @@ const size_t IVLEN = 16;
 const size_t ITERATIONS = 10000;
 
 const size_t DERIVED_KEY_LENGTH = (2 * KEYLEN) + IVLEN;
-
-const std::string CHAR_ENCODING = "UTF-8";
 
 class PasswordAndSalt {
 public:
@@ -55,6 +83,7 @@ public:
   std::string_view password;
   std::array<uint8_t, 32> salt;
 };
+
 
 class EncryptionKeyHMACKeyAndIV {
 public:
@@ -91,29 +120,15 @@ public:
 };
 
 
-class EncryptionKeychain {
-public:
-  static void createKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAndIV& out_keys)
+namespace EncryptionKeychain {
+
+void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAndIV& out_keys)
   {
+  std::cout<<"CreateKeys with password: "<<password_and_salt.password<<", password len="<<password_and_salt.password.length()<<", salt len="<<password_and_salt.salt.size()<<std::endl;
+
     out_keys.clear();
 
-    // Returns a byte array:
-    // [0..keylen-1]: encryption key
-    // [keylen..(keylen * 2) - 1]: hmac key
-    // [(keylen * 2) - 1..(keylen * 2) + ivlen) - 1]: ivlen
-    const std::array<uint8_t, DERIVED_KEY_LENGTH> rawkeys = createRawKey(password_and_salt);
-
-    // Get the parts from the raw keys
-    std::copy_n(rawkeys.begin(), KEYLEN, out_keys.encryption_key.begin());
-    std::copy_n(rawkeys.begin() + KEYLEN, KEYLEN, out_keys.hmac_key.begin());
-    std::copy_n(rawkeys.begin() + KEYLEN + KEYLEN, IVLEN, out_keys.iv.begin());
-  }
-
-private:
-  static std::array<uint8_t, DERIVED_KEY_LENGTH> createRawKey(const PasswordAndSalt& password_and_salt)
-    {
-    std::cout<<"createRawKey with password: "<<password_and_salt.password<<", password len="<<password_and_salt.password.length()<<", salt len="<<password_and_salt.salt.size()<<std::endl;
-
+  // Derive key material with PKCS5 PBKDF2 HMAC
         // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
 
         //CryptoPP::byte derived_bytes[CryptoPP::SHA256::DIGESTSIZE]; // 32 bytes, 256 bits
@@ -123,49 +138,17 @@ private:
         CryptoPP::byte unused = 0;
     pbkdf.DeriveKey(derived_bytes, DERIVED_KEY_LENGTH, unused, (const CryptoPP::byte*)password_and_salt.password.data(), password_and_salt.password.length(), (const CryptoPP::byte*)password_and_salt.salt.data(), password_and_salt.salt.size(), ITERATIONS);
 
-        std::array<uint8_t, DERIVED_KEY_LENGTH> derived;
-        size_t i = 0;
-        for (auto& b : derived_bytes) {
-            if (i < DERIVED_KEY_LENGTH) {
-                derived[i] = b;
-                i++;
-        }
-    }
+  std::span<uint8_t> derived((uint8_t*)derived_bytes, DERIVED_KEY_LENGTH);
 
-    std::cout<<"Derived: "<<DebugBytesToHexString(std::span(derived.data(), DERIVED_KEY_LENGTH))<<std::endl;
+  std::cout<<"Derived: "<<DebugBytesToHexString(derived)<<std::endl;
 
-        return derived;
-        }
-};
-
-}
-
-namespace {
-
-template <size_t N>
-void CopyStringToBytes(std::string_view value, std::array<uint8_t, N>& out_bytes)
-{
-  out_bytes.fill(0);
-
-  for (size_t i = 0; i < N && i < 32; i++) {
-    out_bytes[i] = value.data()[i];
-  }
-}
-
-void output_to_string_wrap_80_characters(std::string_view input, std::ostringstream& output)
-{
-    const size_t max_line_length = 80;
-
-    while (!input.empty()) {
-        // Get up to 32 more characters from the string
-        const size_t line_length = std::min<size_t>(input.length(), max_line_length);
-        if (input.length() > max_line_length) output<<input.substr(0, line_length)<<"\n";
-        else {
-            // This is the last line
-            output<<input.substr(0, line_length);
-        }
-        input.remove_prefix(line_length);
-    }
+  // Get the parts from the derived key material
+  // [0..keylen-1]: encryption key
+  // [keylen..(keylen * 2) - 1]: hmac key
+  // [(keylen * 2) - 1..(keylen * 2) + ivlen) - 1]: ivlen
+  std::copy_n(derived.data(), KEYLEN, out_keys.encryption_key.begin());
+  std::copy_n(derived.data() + KEYLEN, KEYLEN, out_keys.hmac_key.begin());
+  std::copy_n(derived.data() + KEYLEN + KEYLEN, IVLEN, out_keys.iv.begin());
 }
 
 }
@@ -213,8 +196,6 @@ std::vector<uint8_t> pad(std::string_view plain_text_utf8)
 }
 
 }
-
-namespace vault {
 
 // Vault implementation using AES-CTR with an HMAC-SHA256 authentication code.
 // Keys are derived using PBKDF2
@@ -541,7 +522,7 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
 
     // Encrypt the content
     EncryptionKeyHMACKeyAndIV out_keys;
-    EncryptionKeychain::createKeys(password_and_salt, out_keys);
+    EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
 
     std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
     std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
@@ -623,7 +604,7 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
     PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
     EncryptionKeyHMACKeyAndIV out_keys;
-    EncryptionKeychain::createKeys(password_and_salt, out_keys);
+    EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
 
     // key1, key2, and iv
     std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
