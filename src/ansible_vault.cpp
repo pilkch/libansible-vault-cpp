@@ -5,7 +5,6 @@
 #include <ranges>
 #include <string_view>
 
-#include <random>
 #include <climits>
 #include <algorithm>
 #include <functional>
@@ -14,6 +13,7 @@
 #include <cryptopp/aes.h>
 #include <cryptopp/ccm.h>
 #include <cryptopp/hex.h>
+#include <cryptopp/osrng.h>
 #include <cryptopp/pwdbased.h>
 #include <cryptopp/sha.h>
 
@@ -76,8 +76,8 @@ public:
 
   void generateSalt(size_t length)
   {
-    std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> rbe;
-    std::generate(begin(salt), end(salt), std::ref(rbe));
+    CryptoPP::AutoSeededRandomPool prng;
+    prng.GenerateBlock(salt.data(), salt.size());
   }
 
   std::string_view password;
