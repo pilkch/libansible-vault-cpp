@@ -22,17 +22,39 @@ inline uint8_t hexval(uint8_t c) noexcept
 }
 
 template <size_t N>
-inline void BytesToHexString(const std::array<uint8_t, N>& buffer, size_t line_length, std::ostringstream& output)
+inline void BytesToHexString(const std::array<uint8_t, N>& buffer, std::ostringstream& output)
 {
   for (auto& b : buffer) {
     output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(b);
   }
 
-  std::cout<<"BytesToHexString Buffer length: "<<buffer.size()<<std::endl;
+  // Reset the stream flags
+  output<<std::dec;
+}
+
+inline void BytesToHexString(const std::vector<uint8_t>& buffer, std::ostringstream& output)
+{
+  for (auto& b : buffer) {
+    output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(b);
+  }
 
   // Reset the stream flags
   output<<std::dec;
 }
+
+template <size_t N>
+inline std::string DebugBytesToHexString(const std::array<uint8_t, N>& buffer)
+{
+  std::ostringstream output;
+
+  for (auto& b : buffer) {
+    output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(b);
+  }
+
+  return output.str();
+}
+
+std::string DebugBytesToHexString(const std::span<uint8_t>& data);
 
 template <size_t N>
 inline void HexStringToBytes(std::string_view data, std::array<uint8_t, N>& out_bytes)
@@ -61,7 +83,6 @@ inline void HexStringToBytes(std::string_view data, std::array<uint8_t, N>& out_
 }
 
 void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, std::ostringstream& output);
-std::string BytesToHexString(const std::span<uint8_t>& data);
 std::vector<uint8_t> HexStringToBytes(std::string_view data);
 
 void EncodeStringToHexString(std::string_view view, std::ostringstream& output);

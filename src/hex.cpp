@@ -49,7 +49,7 @@ void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, st
   output<<std::dec;
 }
 
-std::string BytesToHexString(const std::span<uint8_t>& data)
+std::string DebugBytesToHexString(const std::span<uint8_t>& data)
 {
   std::string result;
   const bool uppercase = false;

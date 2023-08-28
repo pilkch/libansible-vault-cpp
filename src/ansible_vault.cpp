@@ -132,7 +132,7 @@ private:
         }
     }
 
-        std::cout << "Derived: " << BytesToHexString(std::span(derived.data(), DERIVED_KEY_LENGTH)) << std::endl;
+    std::cout<<"Derived: "<<DebugBytesToHexString(std::span(derived.data(), DERIVED_KEY_LENGTH))<<std::endl;
 
         return derived;
         }
@@ -231,14 +231,14 @@ bool is_encrypted(const std::string_view& content)
 
 
 VaultInfo::VaultInfo() :
-    vault_version("1.1"),
+    vault_version(VAULT_VERSION),
     encryption_method(ENCRYPTION_METHOD::AES256)
 {
 }
 
 void VaultInfo::clear()
 {
-    vault_version = "1.1";
+    vault_version = VAULT_VERSION;
     encryption_method = ENCRYPTION_METHOD::AES256;
 }
 
@@ -376,13 +376,9 @@ bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<u
         return false;
     }
 
-    std::ostringstream o1;
-    BytesToHexString(expected_hmac, 100, o1);
-    std::ostringstream o2;
-    BytesToHexString(calculated_hmac, 100, o2);
     std::cout<<"verifyHMAC"<<std::endl;
-    std::cout<<"Expected: "<<o1.str()<<std::endl;
-    std::cout<<"Calculated: "<<o2.str()<<std::endl;
+    std::cout<<"Expected: "<<DebugBytesToHexString(expected_hmac)<<std::endl;
+    std::cout<<"Calculated: "<<DebugBytesToHexString(calculated_hmac)<<std::endl;
     return (expected_hmac == calculated_hmac);
 }
 
@@ -547,15 +543,9 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
     EncryptionKeyHMACKeyAndIV out_keys;
     EncryptionKeychain::createKeys(password_and_salt, out_keys);
 
-    std::ostringstream o1;
-    BytesToHexString(out_keys.encryption_key, 100, o1);
-    std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<o1.str()<<std::endl;
-    std::ostringstream o2;
-    BytesToHexString(out_keys.hmac_key, 100, o2);
-    std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<o2.str()<<std::endl;
-    std::ostringstream o3;
-    BytesToHexString(out_keys.iv, 100, o3);
-    std::cout<<"IV: "<<out_keys.iv.size()<<", "<<o3.str()<<std::endl;
+    std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
+    std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
+    std::cout<<"IV: "<<out_keys.iv.size()<<", "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
     std::cout<<"Original plain_text_utf8 length: "<<plain_text_utf8.length()<<std::endl;
     const std::vector<uint8_t> data_padded = PKCS7::pad(plain_text_utf8);
@@ -577,11 +567,11 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
     std::cout<<"Creating content salt len: "<<password_and_salt.salt.size()<<", hmacHash len: "<<hmacHash.size()<<", encrypted len: "<<encrypted.size()<<std::endl;
 
     std::ostringstream content_hex;
-    BytesToHexString(password_and_salt.salt, 10000, content_hex);
+    BytesToHexString(password_and_salt.salt, content_hex);
     content_hex<<'\n';
-    BytesToHexString(hmacHash, 10000, content_hex);
+    BytesToHexString(hmacHash, content_hex);
     content_hex<<'\n';
-    BytesToHexString(encrypted, 10000, content_hex);
+    BytesToHexString(encrypted, content_hex);
   
     // Write the header
     output_utf8<<VAULT_MAGIC<<";"<<VAULT_VERSION<<";"<<VAULT_CIPHER_AES256<<"\n";
@@ -627,34 +617,18 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
     std::cout<<"decrypt vault_content.data length: "<<vault_content.data.size()<<std::endl;
 
-    std::ostringstream o1;
-    BytesToHexString(vault_content.salt, 100, o1);
-    std::cout<<"salt "<<o1.str()<<std::endl;
-    std::ostringstream o2;
-    BytesToHexString(vault_content.hmac, 100, o2);
-    std::cout<<"hmac: "<<o2.str()<<std::endl;
-    std::ostringstream o3;
-    BytesToHexString(vault_content.data, 100, o3);
-    std::cout<<"data: "<<o3.str()<<std::endl;
+    std::cout<<"salt "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
+    std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
+    std::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
 
     PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
     EncryptionKeyHMACKeyAndIV out_keys;
     EncryptionKeychain::createKeys(password_and_salt, out_keys);
 
-    // key1
-    std::ostringstream o4;
-    BytesToHexString(out_keys.encryption_key, 100, o4);
-    std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<o4.str()<<std::endl;
-
-    // key2
-    std::ostringstream o5;
-    BytesToHexString(out_keys.hmac_key, 100, o5);
-    std::cout<<"Key 2 length: "<<out_keys.hmac_key.size()<<", value: "<<o5.str()<<std::endl;
-
-    // iv
-    std::ostringstream o6;
-    BytesToHexString(out_keys.iv, 100, o6);
-    std::cout<<"IV length: "<<out_keys.iv.size()<<", value: "<<o6.str()<<std::endl;
+    // key1, key2, and iv
+    std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
+    std::cout<<"Key 2 length: "<<out_keys.hmac_key.size()<<", value: "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
+    std::cout<<"IV length: "<<out_keys.iv.size()<<", value: "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
     const std::vector<uint8_t>& cypher = vault_content.data;
     std::cout<<"decrypt cyper.size: "<<cypher.size()<<std::endl;

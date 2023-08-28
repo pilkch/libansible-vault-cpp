@@ -55,9 +55,8 @@ TEST(HMAC, TestCalculateHMAC)
   EXPECT_TRUE(vault::calculateHMAC(key, data, out_hmac));
 
   EXPECT_EQ(32, out_hmac.size());
-  std::ostringstream output;
-  vault::BytesToHexString(out_hmac, 100, output);
-  EXPECT_STREQ("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1", output.str().c_str());
+  const std::string output_hmac(vault::DebugBytesToHexString(out_hmac));
+  EXPECT_STREQ("571dbe5f777f71b5975ed28211a99a6a07d00a5f42eb6f5b956048e4e659dbf1", output_hmac.c_str());
 
   // And check that verifyHMAC also works with this data
   std::array<uint8_t, 32> as_bytes;
@@ -183,15 +182,12 @@ TEST(AnsibleVault, TestParseSampleTxt)
   vault::VaultContent vault_content;
   EXPECT_EQ(vault::DECRYPT_RESULT::OK, vault::ParseVaultContent(view, vault_content));
 
-  std::ostringstream o1;
-  vault::BytesToHexString(vault_content.salt, 1000, o1);
-  EXPECT_EQ("ed3496252ad601cf571ac38eab55544fd9de4fc160e0053e688e1da1fbb98f40", o1.str());
-  std::ostringstream o2;
-  vault::BytesToHexString(vault_content.hmac, 1000, o2);
-  EXPECT_EQ("c329dee4cbc4412294e077aca91d23c471b0cc8473967fe81dbc0c1832db0f88", o2.str());
-  std::ostringstream o3;
-  vault::BytesToHexString(vault_content.data, 1000, o3);
-  EXPECT_EQ("2812bc157abaa53f7a86e22f9ed253dd", o3.str());
+  const std::string result_salt(vault::DebugBytesToHexString(vault_content.salt));
+  EXPECT_STREQ("ed3496252ad601cf571ac38eab55544fd9de4fc160e0053e688e1da1fbb98f40", result_salt.c_str());
+  const std::string result_hmac(vault::DebugBytesToHexString(vault_content.hmac));
+  EXPECT_STREQ("c329dee4cbc4412294e077aca91d23c471b0cc8473967fe81dbc0c1832db0f88", result_hmac.c_str());
+  const std::string result_data(vault::DebugBytesToHexString(vault_content.data));
+  EXPECT_STREQ("2812bc157abaa53f7a86e22f9ed253dd", result_data.c_str());
 }
 
 
