@@ -28,25 +28,25 @@ void CopyStringToBytes(std::string_view value, std::array<uint8_t, N>& out_bytes
 {
   out_bytes.fill(0);
 
-  for (size_t i = 0; i < N && i < 32; i++) {
+  for (size_t i = 0;(i < value.length()) && (i < N); i++) {
     out_bytes[i] = value.data()[i];
   }
 }
 
 void output_to_string_wrap_80_characters(std::string_view input, std::ostringstream& output)
 {
-    const size_t max_line_length = 80;
+  const size_t max_line_length = 80;
 
-    while (!input.empty()) {
-        // Get up to 32 more characters from the string
-        const size_t line_length = std::min<size_t>(input.length(), max_line_length);
-        if (input.length() > max_line_length) output<<input.substr(0, line_length)<<"\n";
-        else {
-            // This is the last line
-            output<<input.substr(0, line_length);
-        }
-        input.remove_prefix(line_length);
+  while (!input.empty()) {
+    // Get up to 32 more characters from the string
+    const size_t line_length = std::min<size_t>(input.length(), max_line_length);
+    if (input.length() > max_line_length) output<<input.substr(0, line_length)<<"\n";
+    else {
+      // This is the last line
+      output<<input.substr(0, line_length);
     }
+    input.remove_prefix(line_length);
+  }
 }
 
 }
@@ -71,14 +71,14 @@ public:
   PasswordAndSalt(std::string_view _password, const std::array<uint8_t, 32>& _salt) :
     password(_password),
     salt(_salt)
-    {
-    }
+  {
+  }
 
   void generateSalt(size_t length)
-    {
-        std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> rbe;
-        std::generate(begin(salt), end(salt), std::ref(rbe));
-    }
+  {
+    std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> rbe;
+    std::generate(begin(salt), end(salt), std::ref(rbe));
+  }
 
   std::string_view password;
   std::array<uint8_t, 32> salt;
@@ -88,24 +88,24 @@ public:
 class EncryptionKeyHMACKeyAndIV {
 public:
   EncryptionKeyHMACKeyAndIV()
-    {
+  {
     clear();
-    }
+  }
 
-    const std::array<uint8_t, KEYLEN>& getEncryptionKey() const
-    {
+  const std::array<uint8_t, KEYLEN>& getEncryptionKey() const
+  {
     return encryption_key;
-    }
+  }
 
-    const std::array<uint8_t, KEYLEN>& getHMACKey() const
-    {
+  const std::array<uint8_t, KEYLEN>& getHMACKey() const
+  {
     return hmac_key;
-    }
+  }
 
-    const std::array<uint8_t, IVLEN>& getIV() const
-    {
-        return iv;
-    }
+  const std::array<uint8_t, IVLEN>& getIV() const
+  {
+    return iv;
+  }
 
   void clear()
   {
@@ -123,20 +123,20 @@ public:
 namespace EncryptionKeychain {
 
 void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAndIV& out_keys)
-  {
+{
   std::cout<<"CreateKeys with password: "<<password_and_salt.password<<", password len="<<password_and_salt.password.length()<<", salt len="<<password_and_salt.salt.size()<<std::endl;
 
-    out_keys.clear();
+  out_keys.clear();
 
   // Derive key material with PKCS5 PBKDF2 HMAC
-        // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
+  // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
 
-        //CryptoPP::byte derived_bytes[CryptoPP::SHA256::DIGESTSIZE]; // 32 bytes, 256 bits
-        CryptoPP::byte derived_bytes[DERIVED_KEY_LENGTH];
+  //CryptoPP::byte derived_bytes[CryptoPP::SHA256::DIGESTSIZE]; // 32 bytes, 256 bits
+  CryptoPP::byte derived_bytes[DERIVED_KEY_LENGTH];
 
-        CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> pbkdf;
-        CryptoPP::byte unused = 0;
-    pbkdf.DeriveKey(derived_bytes, DERIVED_KEY_LENGTH, unused, (const CryptoPP::byte*)password_and_salt.password.data(), password_and_salt.password.length(), (const CryptoPP::byte*)password_and_salt.salt.data(), password_and_salt.salt.size(), ITERATIONS);
+  CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> pbkdf;
+  CryptoPP::byte unused = 0;
+  pbkdf.DeriveKey(derived_bytes, DERIVED_KEY_LENGTH, unused, (const CryptoPP::byte*)password_and_salt.password.data(), password_and_salt.password.length(), (const CryptoPP::byte*)password_and_salt.salt.data(), password_and_salt.salt.size(), ITERATIONS);
 
   std::span<uint8_t> derived((uint8_t*)derived_bytes, DERIVED_KEY_LENGTH);
 
@@ -163,12 +163,12 @@ size_t GetPadLength(size_t cipher_length)
   size_t padding_length = (BLOCK_SIZE_BYTES - (cipher_length % BLOCK_SIZE_BYTES));
 
   if (padding_length == 0)
-{
+  {
     padding_length = BLOCK_SIZE_BYTES;
   }
 
   return padding_length;
-    }
+}
 
 size_t GetUnpaddedLength(const uint8_t* decrypted, size_t decrypted_length)
 {
@@ -176,10 +176,10 @@ size_t GetUnpaddedLength(const uint8_t* decrypted, size_t decrypted_length)
 
   if (pad_length > decrypted_length) {
     return 0;
-    }
+  }
 
   return decrypted_length - pad_length;
-    }
+}
 
 std::vector<uint8_t> pad(std::string_view plain_text_utf8)
 {
@@ -212,167 +212,152 @@ bool is_encrypted(const std::string_view& content)
 
 
 VaultInfo::VaultInfo() :
-    vault_version(VAULT_VERSION),
-    encryption_method(ENCRYPTION_METHOD::AES256)
+  vault_version(VAULT_VERSION),
+  encryption_method(ENCRYPTION_METHOD::AES256)
 {
 }
 
 void VaultInfo::clear()
 {
-    vault_version = VAULT_VERSION;
-    encryption_method = ENCRYPTION_METHOD::AES256;
+  vault_version = VAULT_VERSION;
+  encryption_method = ENCRYPTION_METHOD::AES256;
 }
 
 
 std::string GenerateVaultInfoString()
 {
-    return VAULT_MAGIC + ";" + VAULT_VERSION + ";" + VAULT_CIPHER_AES256;
+  return VAULT_MAGIC + ";" + VAULT_VERSION + ";" + VAULT_CIPHER_AES256;
 }
 
 DECRYPT_RESULT ParseVaultInfoString(std::string_view& info_line, VaultInfo& out_vault_info)
 {
-    out_vault_info.clear();
+  out_vault_info.clear();
 
-    // Signature
-    size_t found = info_line.find(';');
-    if (found == std::string::npos) return DECRYPT_RESULT::ERROR_PARSING_ENVELOPE_ANSIBLE_VAULT_SIGNATURE;
+  // Signature
+  size_t found = info_line.find(';');
+  if (found == std::string::npos) return DECRYPT_RESULT::ERROR_PARSING_ENVELOPE_ANSIBLE_VAULT_SIGNATURE;
 
-    std::string value(info_line.substr(0, found));
-    if (value != VAULT_MAGIC) return DECRYPT_RESULT::ERROR_PARSING_ENVELOPE_ANSIBLE_VAULT_SIGNATURE;
+  std::string value(info_line.substr(0, found));
+  if (value != VAULT_MAGIC) return DECRYPT_RESULT::ERROR_PARSING_ENVELOPE_ANSIBLE_VAULT_SIGNATURE;
 
-    info_line.remove_prefix(found + 1);
-
-
-    // Version
-    found = info_line.find(';');
-    if (found == std::string::npos) return DECRYPT_RESULT::ERROR_UNSUPPORTED_ENVELOPE_VERSION;
-
-    value = info_line.substr(0, found);
-    if (value != VAULT_VERSION) return DECRYPT_RESULT::ERROR_UNSUPPORTED_ENVELOPE_VERSION;
-
-    info_line.remove_prefix(found + 1);
-
-    out_vault_info.vault_version = VAULT_VERSION;
+  info_line.remove_prefix(found + 1);
 
 
-    // Version
-    found = info_line.find('\n');
-    if (found == std::string::npos) return DECRYPT_RESULT::ERROR_UNSUPPORED_ENCRYPTION_METHOD;
+  // Version
+  found = info_line.find(';');
+  if (found == std::string::npos) return DECRYPT_RESULT::ERROR_UNSUPPORTED_ENVELOPE_VERSION;
 
-    value = info_line.substr(0, found);
-    if (value != VAULT_CIPHER_AES256) return DECRYPT_RESULT::ERROR_UNSUPPORED_ENCRYPTION_METHOD;
+  value = info_line.substr(0, found);
+  if (value != VAULT_VERSION) return DECRYPT_RESULT::ERROR_UNSUPPORTED_ENVELOPE_VERSION;
 
-    info_line.remove_prefix(found + 1);
+  info_line.remove_prefix(found + 1);
 
-    out_vault_info.encryption_method = ENCRYPTION_METHOD::AES256;
+  out_vault_info.vault_version = VAULT_VERSION;
 
-    return DECRYPT_RESULT::OK;
+
+  // Version
+  found = info_line.find('\n');
+  if (found == std::string::npos) return DECRYPT_RESULT::ERROR_UNSUPPORED_ENCRYPTION_METHOD;
+
+  value = info_line.substr(0, found);
+  if (value != VAULT_CIPHER_AES256) return DECRYPT_RESULT::ERROR_UNSUPPORED_ENCRYPTION_METHOD;
+
+  info_line.remove_prefix(found + 1);
+
+  out_vault_info.encryption_method = ENCRYPTION_METHOD::AES256;
+
+  return DECRYPT_RESULT::OK;
 }
 
 DECRYPT_RESULT ParseVaultContent(std::string_view& original_encrypted_data, VaultContent& out_vault_content)
 {
-    out_vault_content.clear();
+  out_vault_content.clear();
 
-    std::cout<<"ParseVaultContent Original vault text: "<<original_encrypted_data<<std::endl;
-    const std::string decrypted_once_data(DecodeHexStringToString(original_encrypted_data));
-    std::cout<<"ParseVaultContent Decrypted once: "<<decrypted_once_data<<std::endl;
-    std::string_view encrypted_data(decrypted_once_data);
+  std::cout<<"ParseVaultContent Original vault text: "<<original_encrypted_data<<std::endl;
+  const std::string decrypted_once_data(DecodeHexStringToString(original_encrypted_data));
+  std::cout<<"ParseVaultContent Decrypted once: "<<decrypted_once_data<<std::endl;
+  std::string_view encrypted_data(decrypted_once_data);
 
-    // Salt
-    size_t found = encrypted_data.find('\n');
-    if (found == std::string::npos) return DECRYPT_RESULT::ERROR_PARSING_VAULT_CONTENT_SALT;
+  // Salt
+  size_t found = encrypted_data.find('\n');
+  if (found == std::string::npos) return DECRYPT_RESULT::ERROR_PARSING_VAULT_CONTENT_SALT;
 
-    const std::string_view salt_hex(encrypted_data.substr(0, found));
+  const std::string_view salt_hex(encrypted_data.substr(0, found));
 
-    encrypted_data.remove_prefix(found + 1);
-
-
-    // HMAC
-    found = encrypted_data.find('\n');
-    if (found == std::string::npos) return DECRYPT_RESULT::ERROR_PARSING_VAULT_CONTENT_HMAC;
-
-    const std::string_view hmac_hex(encrypted_data.substr(0, found));
-
-    encrypted_data.remove_prefix(found + 1);
+  encrypted_data.remove_prefix(found + 1);
 
 
-    // Data
-    const std::string_view data_hex(encrypted_data);
+  // HMAC
+  found = encrypted_data.find('\n');
+  if (found == std::string::npos) return DECRYPT_RESULT::ERROR_PARSING_VAULT_CONTENT_HMAC;
 
-    encrypted_data.remove_prefix(found + 1);
+  const std::string_view hmac_hex(encrypted_data.substr(0, found));
+
+  encrypted_data.remove_prefix(found + 1);
 
 
-    std::cout<<"ParseVaultContent salt: \""<<salt_hex<<"\", hmac: \""<<hmac_hex<<"\", data: \""<<data_hex<<"\""<<std::endl;
+  // Data
+  const std::string_view data_hex(encrypted_data);
 
-    // Get the actual values
-    HexStringToBytes(salt_hex, out_vault_content.salt);
-    HexStringToBytes(hmac_hex, out_vault_content.hmac);
-    out_vault_content.data = HexStringToBytes(data_hex);
+  encrypted_data.remove_prefix(found + 1);
 
-    return DECRYPT_RESULT::OK;
+
+  std::cout<<"ParseVaultContent salt: \""<<salt_hex<<"\", hmac: \""<<hmac_hex<<"\", data: \""<<data_hex<<"\""<<std::endl;
+
+  // Get the actual values
+  HexStringToBytes(salt_hex, out_vault_content.salt);
+  HexStringToBytes(hmac_hex, out_vault_content.hmac);
+  out_vault_content.data = HexStringToBytes(data_hex);
+
+  return DECRYPT_RESULT::OK;
 }
 
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::optional<std::string_view> salt_utf8, std::string& output_vault_id_utf8, std::ostringstream& output_utf8)
 {
-    output_vault_id_utf8.clear();
-    output_utf8.clear();
+  output_vault_id_utf8.clear();
+  output_utf8.clear();
 
-    return DECRYPT_RESULT::OK;
+  return DECRYPT_RESULT::OK;
 }
 
 bool calculateHMAC(const std::array<uint8_t, KEYLEN>& hmac_key, const std::vector<uint8_t>& data, std::array<uint8_t, 32>& out_hmac)
 {
-std::cout<<"calculateHMAC hmac_key length: "<<hmac_key.size()<<", data length: "<<data.size()<<std::endl;
+  out_hmac.fill(0);
 
-    out_hmac.fill(0);
+  try {
+    CryptoPP::HMAC<CryptoPP::SHA256> hmac((const CryptoPP::byte*)hmac_key.data(), hmac_key.size());
 
-    try {
-        CryptoPP::HMAC<CryptoPP::SHA256> hmac((const CryptoPP::byte*)hmac_key.data(), hmac_key.size());
+    const bool pumpAll = true;
+    CryptoPP::ArraySource ss2((const CryptoPP::byte*)data.data(), data.size(), pumpAll,
+      new CryptoPP::HashFilter(hmac,
+        new CryptoPP::ArraySink(out_hmac.data(), out_hmac.size())
+      )
+    );
 
-std::cout<<"calculateHMAC a"<<std::endl;
+  } catch(const CryptoPP::Exception& e) {
+    std::cerr<<e.what()<<std::endl;
+    return false;
+  }
 
-        const bool pumpAll = true;
-        CryptoPP::ArraySource ss2((const CryptoPP::byte*)data.data(), data.size(), pumpAll, 
-            new CryptoPP::HashFilter(hmac,
-                new CryptoPP::ArraySink(out_hmac.data(), out_hmac.size())
-            )
-        );
-
-std::cout<<"calculateHMAC b"<<std::endl;
-    } catch(const CryptoPP::Exception& e) {
-        std::cerr<<e.what()<<std::endl;
-        return false;
-    }
-
-std::cout<<"calculateHMAC returning true"<<std::endl;
-    return true;
+  return true;
 }
 
 bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<uint8_t, KEYLEN>& hmac_key, const std::vector<uint8_t>& data)
 {
-    std::array<uint8_t, 32> calculated_hmac;
-    if (!calculateHMAC(hmac_key, data, calculated_hmac)) {
-        std::cerr<<"verifyHMAC Error calculating HMAC"<<std::endl;
-        return false;
-    }
+  std::array<uint8_t, 32> calculated_hmac;
+  if (!calculateHMAC(hmac_key, data, calculated_hmac)) {
+    std::cerr<<"verifyHMAC Error calculating HMAC"<<std::endl;
+    return false;
+  }
 
-    std::cout<<"verifyHMAC"<<std::endl;
-    std::cout<<"Expected: "<<DebugBytesToHexString(expected_hmac)<<std::endl;
-    std::cout<<"Calculated: "<<DebugBytesToHexString(calculated_hmac)<<std::endl;
-    return (expected_hmac == calculated_hmac);
+  std::cout<<"verifyHMAC"<<std::endl;
+  std::cout<<"Expected: "<<DebugBytesToHexString(expected_hmac)<<std::endl;
+  std::cout<<"Calculated: "<<DebugBytesToHexString(calculated_hmac)<<std::endl;
+  return (expected_hmac == calculated_hmac);
 }
 
 
-std::string string_to_hex(const char* text, size_t length)
-{
-  std::ostringstream o;
-  for (size_t i = 0; i < length; i++) {
-    o<<std::setfill('0')<<std::setw(2)<<std::hex<<int(text[i]);
-}
-
-  return o.str();
-}
 
 bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t, 32>& _key, const std::array<uint8_t, 16>& _iv, std::vector<uint8_t>& out_encrypted)
 {
@@ -390,12 +375,12 @@ bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t
   CryptoPP::byte key[32];
   for (size_t i = 0; i < 32; i++) {
     key[i] = static_cast<CryptoPP::byte>(_key[i]);
-}
+  }
 
   CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
   for (size_t i = 0; i < CryptoPP::AES::BLOCKSIZE; i++) {
     iv[i] = static_cast<CryptoPP::byte>(_iv[i]);
-}
+  }
 
   std::ostringstream plain;
   for (auto& c : _plaintext) {
@@ -413,10 +398,10 @@ bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t
     // The StreamTransformationFilter adds padding
     //  as required. ECB and CBC Mode must be padded
     //  to the block size of the cipher.
-    CryptoPP::StringSource(plain.str(), true, 
+    CryptoPP::StringSource(plain.str(), true,
       new CryptoPP::StreamTransformationFilter(e,
         new CryptoPP::StringSink(cipher)
-      )      
+      )
     );
   } catch(const CryptoPP::Exception& e) {
       std::cerr<<e.what()<<std::endl;
@@ -435,135 +420,135 @@ bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t
 
 bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 32>& _key, const std::array<uint8_t, 16>& _iv, std::vector<uint8_t>& out_decrypted)
 {
-    std::cout<<"decryptAES _cypher length: "<<_cypher.size()<<std::endl;
-    out_decrypted.clear();
+  std::cout<<"decryptAES _cypher length: "<<_cypher.size()<<std::endl;
+  out_decrypted.clear();
 
-    if (_key.size() != 32) {
-        std::cerr<<"decryptAES Key is the wrong size"<<std::endl;
-        return false;
-    } else if (_iv.size() != CryptoPP::AES::BLOCKSIZE) {
-        std::cerr<<"decryptAES IV is the wrong size"<<std::endl;
-        return false;
-    }
+  if (_key.size() != 32) {
+    std::cerr<<"decryptAES Key is the wrong size"<<std::endl;
+    return false;
+  } else if (_iv.size() != CryptoPP::AES::BLOCKSIZE) {
+    std::cerr<<"decryptAES IV is the wrong size"<<std::endl;
+    return false;
+  }
 
-  CryptoPP::byte key[32];
-    for (size_t i = 0; i < 32; i++) {
-        key[i] = static_cast<CryptoPP::byte>(_key[i]);
-    }
+CryptoPP::byte key[32];
+  for (size_t i = 0; i < 32; i++) {
+    key[i] = static_cast<CryptoPP::byte>(_key[i]);
+  }
 
-    CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
-    for (size_t i = 0; i < CryptoPP::AES::BLOCKSIZE; i++) {
-        iv[i] = static_cast<CryptoPP::byte>(_iv[i]);
-    }
+  CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
+  for (size_t i = 0; i < CryptoPP::AES::BLOCKSIZE; i++) {
+    iv[i] = static_cast<CryptoPP::byte>(_iv[i]);
+  }
 
-    std::ostringstream cypher;
-    for (auto& c : _cypher) {
-        cypher<<c;
-    }
+  std::ostringstream cypher;
+  for (auto& c : _cypher) {
+    cypher<<c;
+  }
 
-    std::cout<<"decryptAES cypher length: "<<cypher.str().length()<<std::endl;
+  std::cout<<"decryptAES cypher length: "<<cypher.str().length()<<std::endl;
 
-    CryptoPP::byte cbRecoveredText[ CryptoPP::AES::BLOCKSIZE ];
-    ::memset(cbRecoveredText, 0, sizeof(cbRecoveredText));
+  CryptoPP::byte cbRecoveredText[ CryptoPP::AES::BLOCKSIZE ];
+  ::memset(cbRecoveredText, 0, sizeof(cbRecoveredText));
 
-    std::string recovered;
+  std::string recovered;
 
-    try {
-        CryptoPP::CTR_Mode<CryptoPP::AES>::Decryption d;
-        d.SetKeyWithIV(key, sizeof(key), iv);
+  try {
+    CryptoPP::CTR_Mode<CryptoPP::AES>::Decryption d;
+    d.SetKeyWithIV(key, sizeof(key), iv);
 
 #if 0
-        d.ProcessData( cbRecoveredText, _cypher.data(), _cypher.size() );
-        for (auto& c : cbRecoveredText) {
-            out_decrypted.push_back(c);
-        }
+    d.ProcessData( cbRecoveredText, _cypher.data(), _cypher.size() );
+    for (auto& c : cbRecoveredText) {
+      out_decrypted.push_back(c);
+    }
 #elif 1
-        CryptoPP::ArraySource(_cypher.data(), _cypher.size(), true,
-            new CryptoPP::StreamTransformationFilter(d,
-                new CryptoPP::StringSink(recovered)
-            )
-        );
+    CryptoPP::ArraySource(_cypher.data(), _cypher.size(), true,
+      new CryptoPP::StreamTransformationFilter(d,
+        new CryptoPP::StringSink(recovered)
+      )
+    );
 #else
-        // The StreamTransformationFilter removes
-        //  padding as required.
-        CryptoPP::StringSource s(cypher.str(), true, 
-            new CryptoPP::StreamTransformationFilter(d,
-                new CryptoPP::StringSink(recovered)
-            )
-        );
+    // The StreamTransformationFilter removes
+    //  padding as required.
+    CryptoPP::StringSource s(cypher.str(), true,
+      new CryptoPP::StreamTransformationFilter(d,
+        new CryptoPP::StringSink(recovered)
+      )
+    );
 #endif
-    } catch(const CryptoPP::Exception& e) {
-        std::cerr<<e.what()<<std::endl;
-        return false;
-    }
+  } catch(const CryptoPP::Exception& e) {
+    std::cerr<<e.what()<<std::endl;
+    return false;
+  }
 
-    std::cout<<"decryptAES Recovered length: "<<recovered.length()<<", text: "<<recovered<<std::endl;
+  std::cout<<"decryptAES Recovered length: "<<recovered.length()<<", text: "<<recovered<<std::endl;
 
-    // Handle the padding because CryptoPP kept complaining that the padding flags can't be used with AES CTR
-    const size_t unpadded_length = PKCS7::GetUnpaddedLength((const uint8_t*)recovered.data(), _cypher.size());
+  // Handle the padding because CryptoPP kept complaining that the padding flags can't be used with AES CTR
+  const size_t unpadded_length = PKCS7::GetUnpaddedLength((const uint8_t*)recovered.data(), _cypher.size());
 
-    for (size_t i = 0; i < unpadded_length; i++) {
-        out_decrypted.push_back(recovered[i]);
-    }
+  for (size_t i = 0; i < unpadded_length; i++) {
+    out_decrypted.push_back(recovered[i]);
+  }
 
-    std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<(const char*)(out_decrypted.data())<<std::endl;
-    return true;
+  std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<(const char*)(out_decrypted.data())<<std::endl;
+  return true;
 }
 
 
 
 ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& password_and_salt, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
 {
-    output_utf8.clear();
+  output_utf8.clear();
 
-    if (is_encrypted(plain_text_utf8)) {
-        return ENCRYPT_RESULT::ERROR_ALREADY_ENCRYPTED;
-    }
+  if (is_encrypted(plain_text_utf8)) {
+    return ENCRYPT_RESULT::ERROR_ALREADY_ENCRYPTED;
+  }
 
-    // Encrypt the content
-    EncryptionKeyHMACKeyAndIV out_keys;
-    EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
+  // Encrypt the content
+  EncryptionKeyHMACKeyAndIV out_keys;
+  EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
 
-    std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
-    std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
-    std::cout<<"IV: "<<out_keys.iv.size()<<", "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
+  std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
+  std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
+  std::cout<<"IV: "<<out_keys.iv.size()<<", "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
-    std::cout<<"Original plain_text_utf8 length: "<<plain_text_utf8.length()<<std::endl;
-    const std::vector<uint8_t> data_padded = PKCS7::pad(plain_text_utf8);
-    std::cout<<"Padded data length: "<<data_padded.size()<<std::endl;
+  std::cout<<"Original plain_text_utf8 length: "<<plain_text_utf8.length()<<std::endl;
+  const std::vector<uint8_t> data_padded = PKCS7::pad(plain_text_utf8);
+  std::cout<<"Padded data length: "<<data_padded.size()<<std::endl;
 
-    std::vector<uint8_t> encrypted;
-    if (!encryptAES(data_padded, out_keys.encryption_key, out_keys.iv, encrypted)) {
-      std::cerr<<"encrypt Error encrypting with AES"<<std::endl;
-      return ENCRYPT_RESULT::ERROR_AES_ENCRYPTION_FAILED;
-    }
+  std::vector<uint8_t> encrypted;
+  if (!encryptAES(data_padded, out_keys.encryption_key, out_keys.iv, encrypted)) {
+    std::cerr<<"encrypt Error encrypting with AES"<<std::endl;
+    return ENCRYPT_RESULT::ERROR_AES_ENCRYPTION_FAILED;
+  }
 
-    std::array<uint8_t, 32> hmacHash;
-    if (!calculateHMAC(out_keys.hmac_key, encrypted, hmacHash)) {
-        std::cerr<<"encrypt Error calculating HMAC"<<std::endl;
-        return ENCRYPT_RESULT::ERROR_CALCULATING_HMAC;
-    }
+  std::array<uint8_t, 32> hmacHash;
+  if (!calculateHMAC(out_keys.hmac_key, encrypted, hmacHash)) {
+    std::cerr<<"encrypt Error calculating HMAC"<<std::endl;
+    return ENCRYPT_RESULT::ERROR_CALCULATING_HMAC;
+  }
 
-    std::cout<<"Original plain text length: "<<plain_text_utf8.length()<<", padded length: "<<data_padded.size()<<std::endl;
-    std::cout<<"Creating content salt len: "<<password_and_salt.salt.size()<<", hmacHash len: "<<hmacHash.size()<<", encrypted len: "<<encrypted.size()<<std::endl;
+  std::cout<<"Original plain text length: "<<plain_text_utf8.length()<<", padded length: "<<data_padded.size()<<std::endl;
+  std::cout<<"Creating content salt len: "<<password_and_salt.salt.size()<<", hmacHash len: "<<hmacHash.size()<<", encrypted len: "<<encrypted.size()<<std::endl;
 
-    std::ostringstream content_hex;
-    BytesToHexString(password_and_salt.salt, content_hex);
-    content_hex<<'\n';
-    BytesToHexString(hmacHash, content_hex);
-    content_hex<<'\n';
-    BytesToHexString(encrypted, content_hex);
-  
-    // Write the header
-    output_utf8<<VAULT_MAGIC<<";"<<VAULT_VERSION<<";"<<VAULT_CIPHER_AES256<<"\n";
+  std::ostringstream content_hex;
+  BytesToHexString(password_and_salt.salt, content_hex);
+  content_hex<<'\n';
+  BytesToHexString(hmacHash, content_hex);
+  content_hex<<'\n';
+  BytesToHexString(encrypted, content_hex);
 
-    std::ostringstream content_double_hex;
-    EncodeStringToHexString(content_hex.str(), content_double_hex);
+  // Write the header
+  output_utf8<<VAULT_MAGIC<<";"<<VAULT_VERSION<<";"<<VAULT_CIPHER_AES256<<"\n";
 
-    // Write the content
-    output_to_string_wrap_80_characters(content_double_hex.str(), output_utf8);
+  std::ostringstream content_double_hex;
+  EncodeStringToHexString(content_hex.str(), content_double_hex);
 
-    return ENCRYPT_RESULT::OK;
+  // Write the content
+  output_to_string_wrap_80_characters(content_double_hex.str(), output_utf8);
+
+  return ENCRYPT_RESULT::OK;
 }
 
 ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const std::array<uint8_t, 32>& salt, std::ostringstream& output_utf8)
@@ -582,57 +567,57 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view passwo
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
 {
-    output_utf8.clear();
+  output_utf8.clear();
 
-    VaultInfo vault_info;
-    DECRYPT_RESULT result = ParseVaultInfoString(encrypted_utf8, vault_info);
-    if (result != DECRYPT_RESULT::OK) {
-        return result;
-    }
+  VaultInfo vault_info;
+  DECRYPT_RESULT result = ParseVaultInfoString(encrypted_utf8, vault_info);
+  if (result != DECRYPT_RESULT::OK) {
+    return result;
+  }
 
-    VaultContent vault_content;
-    result = ParseVaultContent(encrypted_utf8, vault_content);
-    if (result != DECRYPT_RESULT::OK) {
-        return result;
-    }
+  VaultContent vault_content;
+  result = ParseVaultContent(encrypted_utf8, vault_content);
+  if (result != DECRYPT_RESULT::OK) {
+    return result;
+  }
 
-    std::cout<<"decrypt vault_content.data length: "<<vault_content.data.size()<<std::endl;
+  std::cout<<"decrypt vault_content.data length: "<<vault_content.data.size()<<std::endl;
 
-    std::cout<<"salt "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
-    std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
-    std::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
+  std::cout<<"salt "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
+  std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
+  std::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
 
-    PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
-    EncryptionKeyHMACKeyAndIV out_keys;
-    EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
+  PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
+  EncryptionKeyHMACKeyAndIV out_keys;
+  EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
 
-    // key1, key2, and iv
-    std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
-    std::cout<<"Key 2 length: "<<out_keys.hmac_key.size()<<", value: "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
-    std::cout<<"IV length: "<<out_keys.iv.size()<<", value: "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
+  // key1, key2, and iv
+  std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
+  std::cout<<"Key 2 length: "<<out_keys.hmac_key.size()<<", value: "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
+  std::cout<<"IV length: "<<out_keys.iv.size()<<", value: "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
-    const std::vector<uint8_t>& cypher = vault_content.data;
-    std::cout<<"decrypt cyper.size: "<<cypher.size()<<std::endl;
+  const std::vector<uint8_t>& cypher = vault_content.data;
+  std::cout<<"decrypt cyper.size: "<<cypher.size()<<std::endl;
 
-    // expected, key, data
-    std::array<uint8_t, 32> expected_hmac_trimmed;
-    std::copy_n(vault_content.hmac.begin(), 32, expected_hmac_trimmed.begin());
-    if (!verifyHMAC(expected_hmac_trimmed, out_keys.hmac_key, cypher)) {
-        std::cerr<<"Error verifying hmac"<<std::endl;
-        return DECRYPT_RESULT::ERROR_VERIFYING_HMAC;
-    }
+  // expected, key, data
+  std::array<uint8_t, 32> expected_hmac_trimmed;
+  std::copy_n(vault_content.hmac.begin(), 32, expected_hmac_trimmed.begin());
+  if (!verifyHMAC(expected_hmac_trimmed, out_keys.hmac_key, cypher)) {
+    std::cerr<<"Error verifying hmac"<<std::endl;
+    return DECRYPT_RESULT::ERROR_VERIFYING_HMAC;
+  }
 
-    std::cout<<"Signature matches - decrypting"<<std::endl;
-    std::vector<uint8_t> decrypted;
-    if (!decryptAES(cypher, out_keys.encryption_key, out_keys.iv, decrypted)) {
-        std::cerr<<"Error decrypting"<<std::endl;
-        return DECRYPT_RESULT::ERROR_DECRYPTING_CONTENT;
-    }
+  std::cout<<"Signature matches - decrypting"<<std::endl;
+  std::vector<uint8_t> decrypted;
+  if (!decryptAES(cypher, out_keys.encryption_key, out_keys.iv, decrypted)) {
+    std::cerr<<"Error decrypting"<<std::endl;
+    return DECRYPT_RESULT::ERROR_DECRYPTING_CONTENT;
+  }
 
-    output_utf8<<std::string((const char*)decrypted.data(), decrypted.size());
-    std::cout<<"Decoded: \""<<output_utf8.str()<<"\""<<std::endl;
+  output_utf8<<std::string((const char*)decrypted.data(), decrypted.size());
+  std::cout<<"Decoded: \""<<output_utf8.str()<<"\""<<std::endl;
 
-    return DECRYPT_RESULT::OK;
+  return DECRYPT_RESULT::OK;
 }
 
 }
