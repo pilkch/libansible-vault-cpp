@@ -53,6 +53,12 @@ void output_to_string_wrap_80_characters(std::string_view input, std::ostringstr
 
 namespace vault {
 
+void fill_random(std::array<uint8_t, 32>& buffer)
+{
+  CryptoPP::AutoSeededRandomPool prng;
+  prng.GenerateBlock(buffer.data(), buffer.size());
+}
+
 const size_t SALT_LENGTH = 32;
 const size_t KEYLEN = 32;
 const size_t IVLEN = 16;
@@ -68,20 +74,14 @@ public:
     salt.fill(0);
   }
 
-  PasswordAndSalt(std::string_view _password, const std::array<uint8_t, 32>& _salt) :
+  PasswordAndSalt(std::string_view _password, const std::array<uint8_t, SALT_LENGTH>& _salt) :
     password(_password),
     salt(_salt)
   {
   }
 
-  void generateSalt(size_t length)
-  {
-    CryptoPP::AutoSeededRandomPool prng;
-    prng.GenerateBlock(salt.data(), salt.size());
-  }
-
   std::string_view password;
-  std::array<uint8_t, 32> salt;
+  std::array<uint8_t, SALT_LENGTH> salt;
 };
 
 
@@ -319,7 +319,6 @@ bool calculateHMAC(const std::array<uint8_t, KEYLEN>& hmac_key, const std::vecto
         new CryptoPP::ArraySink(out_hmac.data(), out_hmac.size())
       )
     );
-
   } catch(const CryptoPP::Exception& e) {
     std::cerr<<e.what()<<std::endl;
     return false;
@@ -370,80 +369,33 @@ bool encryptAES(const std::vector<uint8_t>& plaintext, const std::array<uint8_t,
   return true;
 }
 
-bool decryptAES(const std::vector<uint8_t>& _cypher, const std::array<uint8_t, 32>& _key, const std::array<uint8_t, 16>& _iv, std::vector<uint8_t>& out_decrypted)
+bool decryptAES(const std::vector<uint8_t>& cypher, const std::array<uint8_t, 32>& key, const std::array<uint8_t, 16>& iv, std::vector<uint8_t>& out_decrypted)
 {
-  std::cout<<"decryptAES _cypher length: "<<_cypher.size()<<std::endl;
-  out_decrypted.clear();
+  std::cout<<"decryptAES cypher length: "<<cypher.size()<<std::endl;
 
-  if (_key.size() != 32) {
-    std::cerr<<"decryptAES Key is the wrong size"<<std::endl;
-    return false;
-  } else if (_iv.size() != CryptoPP::AES::BLOCKSIZE) {
-    std::cerr<<"decryptAES IV is the wrong size"<<std::endl;
-    return false;
-  }
-
-CryptoPP::byte key[32];
-  for (size_t i = 0; i < 32; i++) {
-    key[i] = static_cast<CryptoPP::byte>(_key[i]);
-  }
-
-  CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
-  for (size_t i = 0; i < CryptoPP::AES::BLOCKSIZE; i++) {
-    iv[i] = static_cast<CryptoPP::byte>(_iv[i]);
-  }
-
-  std::ostringstream cypher;
-  for (auto& c : _cypher) {
-    cypher<<c;
-  }
-
-  std::cout<<"decryptAES cypher length: "<<cypher.str().length()<<std::endl;
-
-  CryptoPP::byte cbRecoveredText[ CryptoPP::AES::BLOCKSIZE ];
-  ::memset(cbRecoveredText, 0, sizeof(cbRecoveredText));
-
-  std::string recovered;
+  out_decrypted.assign(cypher.size(), 0);
 
   try {
     CryptoPP::CTR_Mode<CryptoPP::AES>::Decryption d;
-    d.SetKeyWithIV(key, sizeof(key), iv);
+    d.SetKeyWithIV(static_cast<const uint8_t*>(key.data()), key.size(), static_cast<const uint8_t*>(iv.data()));
 
-#if 0
-    d.ProcessData( cbRecoveredText, _cypher.data(), _cypher.size() );
-    for (auto& c : cbRecoveredText) {
-      out_decrypted.push_back(c);
-    }
-#elif 1
-    CryptoPP::ArraySource(_cypher.data(), _cypher.size(), true,
+    CryptoPP::ArraySource(static_cast<const uint8_t*>(cypher.data()), cypher.size(), true,
       new CryptoPP::StreamTransformationFilter(d,
-        new CryptoPP::StringSink(recovered)
+        new CryptoPP::ArraySink(static_cast<CryptoPP::byte*>(out_decrypted.data()), out_decrypted.size())
       )
     );
-#else
-    // The StreamTransformationFilter removes
-    //  padding as required.
-    CryptoPP::StringSource s(cypher.str(), true,
-      new CryptoPP::StreamTransformationFilter(d,
-        new CryptoPP::StringSink(recovered)
-      )
-    );
-#endif
   } catch(const CryptoPP::Exception& e) {
     std::cerr<<e.what()<<std::endl;
     return false;
   }
 
-  std::cout<<"decryptAES Recovered length: "<<recovered.length()<<", text: "<<recovered<<std::endl;
-
   // Handle the padding because CryptoPP kept complaining that the padding flags can't be used with AES CTR
-  const size_t unpadded_length = PKCS7::GetUnpaddedLength((const uint8_t*)recovered.data(), _cypher.size());
+  const size_t unpadded_length = PKCS7::GetUnpaddedLength((const uint8_t*)out_decrypted.data(), cypher.size());
 
-  for (size_t i = 0; i < unpadded_length; i++) {
-    out_decrypted.push_back(recovered[i]);
-  }
+  // Truncate the output to the correct size
+  out_decrypted.resize(unpadded_length);
 
-  std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<(const char*)(out_decrypted.data())<<std::endl;
+  std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<std::string((const char*)out_decrypted.data(), out_decrypted.size())<<std::endl;
   return true;
 }
 
@@ -512,7 +464,8 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view passwo
 ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
 {
   PasswordAndSalt password_and_salt(password_utf8);
-  password_and_salt.generateSalt(SALT_LENGTH);
+
+  fill_random(password_and_salt.salt);
 
   return encrypt(plain_text_utf8, password_and_salt, std::nullopt, output_utf8);
 }
