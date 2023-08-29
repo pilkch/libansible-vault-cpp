@@ -104,8 +104,7 @@ public:
   std::array<uint8_t, IVLEN> iv;
 };
 
-
-namespace EncryptionKeychain {
+namespace PKCS5_PBKDF2_HMAC {
 
 void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAndIV& out_keys)
 {
@@ -117,23 +116,22 @@ void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAn
   // https://cryptopp.com/wiki/PKCS5_PBKDF2_HMAC
 
   //CryptoPP::byte derived_bytes[CryptoPP::SHA256::DIGESTSIZE]; // 32 bytes, 256 bits
-  CryptoPP::byte derived_bytes[DERIVED_KEY_LENGTH];
+  std::array<CryptoPP::byte, DERIVED_KEY_LENGTH> derived_bytes;
 
   CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> pbkdf;
   CryptoPP::byte unused = 0;
-  pbkdf.DeriveKey(derived_bytes, DERIVED_KEY_LENGTH, unused, (const CryptoPP::byte*)password_and_salt.password.data(), password_and_salt.password.length(), (const CryptoPP::byte*)password_and_salt.salt.data(), password_and_salt.salt.size(), ITERATIONS);
+  pbkdf.DeriveKey(derived_bytes.data(), DERIVED_KEY_LENGTH, unused, (const CryptoPP::byte*)password_and_salt.password.data(), password_and_salt.password.length(), (const CryptoPP::byte*)password_and_salt.salt.data(), password_and_salt.salt.size(), ITERATIONS);
 
-  std::span<uint8_t> derived((uint8_t*)derived_bytes, DERIVED_KEY_LENGTH);
-
-  std::cout<<"Derived: "<<DebugBytesToHexString(derived)<<std::endl;
+  std::cout<<"Derived: "<<DebugBytesToHexString(derived_bytes)<<std::endl;
 
   // Get the parts from the derived key material
   // [0..keylen-1]: encryption key
   // [keylen..(keylen * 2) - 1]: hmac key
   // [(keylen * 2) - 1..(keylen * 2) + ivlen) - 1]: ivlen
-  std::copy_n(derived.data(), KEYLEN, out_keys.encryption_key.begin());
-  std::copy_n(derived.data() + KEYLEN, KEYLEN, out_keys.hmac_key.begin());
-  std::copy_n(derived.data() + KEYLEN + KEYLEN, IVLEN, out_keys.iv.begin());
+  const uint8_t* pDerived = static_cast<const uint8_t*>(derived_bytes.data());
+  std::copy_n(pDerived, KEYLEN, out_keys.encryption_key.begin());
+  std::copy_n(pDerived + KEYLEN, KEYLEN, out_keys.hmac_key.begin());
+  std::copy_n(pDerived + KEYLEN + KEYLEN, IVLEN, out_keys.iv.begin());
 }
 
 }
@@ -411,7 +409,7 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
 
   // Encrypt the content
   EncryptionKeyHMACKeyAndIV out_keys;
-  EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
+  PKCS5_PBKDF2_HMAC::CreateKeys(password_and_salt, out_keys);
 
   std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
   std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
@@ -492,9 +490,10 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
   std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
   std::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
 
-  PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
+  const PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
+
   EncryptionKeyHMACKeyAndIV out_keys;
-  EncryptionKeychain::CreateKeys(password_and_salt, out_keys);
+  PKCS5_PBKDF2_HMAC::CreateKeys(password_and_salt, out_keys);
 
   // key1, key2, and iv
   std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
