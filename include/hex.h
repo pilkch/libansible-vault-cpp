@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <iomanip>
 #include <span>
 #include <sstream>
 #include <string>
