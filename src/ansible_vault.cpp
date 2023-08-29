@@ -92,21 +92,6 @@ public:
     clear();
   }
 
-  const std::array<uint8_t, KEYLEN>& getEncryptionKey() const
-  {
-    return encryption_key;
-  }
-
-  const std::array<uint8_t, KEYLEN>& getHMACKey() const
-  {
-    return hmac_key;
-  }
-
-  const std::array<uint8_t, IVLEN>& getIV() const
-  {
-    return iv;
-  }
-
   void clear()
   {
     encryption_key.fill(0);
@@ -358,49 +343,22 @@ bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<u
 }
 
 
-
-bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t, 32>& _key, const std::array<uint8_t, 16>& _iv, std::vector<uint8_t>& out_encrypted)
+bool encryptAES(const std::vector<uint8_t>& plaintext, const std::array<uint8_t, 32>& key, const std::array<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted)
 {
-  std::cout<<"encryptAES _plaintext length: "<<_plaintext.size()<<std::endl;
-  out_encrypted.clear();
+  std::cout<<"encryptAES plaintext length: "<<plaintext.size()<<std::endl;
 
-  if (_key.size() != 32) {
-    std::cerr<<"encryptAES Key is the wrong size"<<std::endl;
-    return false;
-  } else if (_iv.size() != CryptoPP::AES::BLOCKSIZE) {
-    std::cerr<<"encryptAES IV is the wrong size"<<std::endl;
-    return false;
-  }
-
-  CryptoPP::byte key[32];
-  for (size_t i = 0; i < 32; i++) {
-    key[i] = static_cast<CryptoPP::byte>(_key[i]);
-  }
-
-  CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
-  for (size_t i = 0; i < CryptoPP::AES::BLOCKSIZE; i++) {
-    iv[i] = static_cast<CryptoPP::byte>(_iv[i]);
-  }
-
-  std::ostringstream plain;
-  for (auto& c : _plaintext) {
-    plain<<c;
-  }
-
-  std::cout<<"encryptAES plain length: "<<plain.str().length()<<std::endl;
-
-  std::string cipher;
+  out_encrypted.assign(plaintext.size(), 0);
 
   try {
     CryptoPP::CTR_Mode<CryptoPP::AES>::Encryption e;
-    e.SetKeyWithIV(key, sizeof(key), iv);
+    e.SetKeyWithIV(static_cast<const CryptoPP::byte*>(key.data()), key.size(), static_cast<const CryptoPP::byte*>(iv.data()));
 
     // The StreamTransformationFilter adds padding
     //  as required. ECB and CBC Mode must be padded
     //  to the block size of the cipher.
-    CryptoPP::StringSource(plain.str(), true,
+    CryptoPP::ArraySource(static_cast<const CryptoPP::byte*>(plaintext.data()), plaintext.size(), true,
       new CryptoPP::StreamTransformationFilter(e,
-        new CryptoPP::StringSink(cipher)
+        new CryptoPP::ArraySink(static_cast<CryptoPP::byte*>(out_encrypted.data()), out_encrypted.size())
       )
     );
   } catch(const CryptoPP::Exception& e) {
@@ -408,13 +366,7 @@ bool encryptAES(const std::vector<uint8_t>& _plaintext, const std::array<uint8_t
       return false;
   }
 
-  std::cout<<"encryptAES cipher length: "<<cipher.length()<<", text: "<<cipher<<std::endl;
-
-  for (size_t i = 0; i < cipher.length(); i++) {
-    out_encrypted.push_back(cipher[i]);
-  }
-
-  std::cout<<"encryptAES Encoded length: "<<out_encrypted.size()<<", text: "<<(const char*)(out_encrypted.data())<<std::endl;
+  std::cout<<"encryptAES Encoded length: "<<out_encrypted.size()<<", text: "<<std::string((const char*)out_encrypted.data(), out_encrypted.size())<<std::endl;
   return true;
 }
 
