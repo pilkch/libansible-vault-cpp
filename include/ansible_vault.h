@@ -74,7 +74,11 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view passwo
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8);
 
+namespace cryptopp_driver {
+
 bool calculateHMAC(const std::array<uint8_t, 32>& hmac_key, const std::vector<uint8_t>& data, std::array<uint8_t, 32>& out_hmac);
 bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<uint8_t, 32>& hmac_key, const std::vector<uint8_t>& data);
+
+}
 
 }
