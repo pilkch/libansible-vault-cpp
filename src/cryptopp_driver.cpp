@@ -106,7 +106,7 @@ bool calculateHMAC(const std::array<uint8_t, KEYLEN>& hmac_key, const std::vecto
     CryptoPP::HMAC<CryptoPP::SHA256> hmac((const CryptoPP::byte*)hmac_key.data(), hmac_key.size());
 
     const bool pumpAll = true;
-    CryptoPP::ArraySource ss2((const CryptoPP::byte*)data.data(), data.size(), pumpAll,
+    CryptoPP::ArraySource((const CryptoPP::byte*)data.data(), data.size(), pumpAll,
       new CryptoPP::HashFilter(hmac,
         new CryptoPP::ArraySink(out_hmac.data(), out_hmac.size())
       )
@@ -127,9 +127,9 @@ bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<u
     return false;
   }
 
-  std::cout<<"verifyHMAC"<<std::endl;
-  std::cout<<"Expected: "<<DebugBytesToHexString(expected_hmac)<<std::endl;
-  std::cout<<"Calculated: "<<DebugBytesToHexString(calculated_hmac)<<std::endl;
+  //std::cout<<"verifyHMAC"<<std::endl;
+  //std::cout<<"Expected: "<<DebugBytesToHexString(expected_hmac)<<std::endl;
+  //std::cout<<"Calculated: "<<DebugBytesToHexString(calculated_hmac)<<std::endl;
   return (expected_hmac == calculated_hmac);
 }
 
