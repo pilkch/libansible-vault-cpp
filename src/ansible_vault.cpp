@@ -183,7 +183,7 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
     return ENCRYPT_RESULT::ERROR_AES_ENCRYPTION_FAILED;
   }
 
-  std::array<uint8_t, 32> hmacHash;
+  SecureArray<uint8_t, 32> hmacHash;
   if (!cryptopp_driver::calculateHMAC(out_keys.hmac_key, encrypted, hmacHash)) {
     std::cerr<<"encrypt Error calculating HMAC"<<std::endl;
     return ENCRYPT_RESULT::ERROR_CALCULATING_HMAC;
@@ -211,7 +211,7 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
   return ENCRYPT_RESULT::OK;
 }
 
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const std::array<uint8_t, 32>& salt, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8)
 {
   const PasswordAndSalt password_and_salt(password_utf8, salt);
   return encrypt(plain_text_utf8, password_and_salt, std::nullopt, output_utf8);
@@ -262,8 +262,7 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
   std::cout<<"decrypt cyper.size: "<<cypher.size()<<std::endl;
 
   // expected, key, data
-  std::array<uint8_t, 32> expected_hmac_trimmed;
-  std::copy_n(vault_content.hmac.begin(), 32, expected_hmac_trimmed.begin());
+  const SecureArray<uint8_t, 32>& expected_hmac_trimmed = vault_content.hmac;
   if (!cryptopp_driver::verifyHMAC(expected_hmac_trimmed, out_keys.hmac_key, cypher)) {
     std::cerr<<"Error verifying hmac"<<std::endl;
     return DECRYPT_RESULT::ERROR_VERIFYING_HMAC;

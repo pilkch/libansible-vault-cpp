@@ -14,7 +14,7 @@ namespace vault {
 
 namespace cryptopp_driver {
 
-void fill_random(std::array<uint8_t, 32>& buffer)
+void fill_random(SecureArray<uint8_t, 32>& buffer)
 {
   CryptoPP::AutoSeededRandomPool prng;
   prng.GenerateBlock(buffer.data(), buffer.size());
@@ -98,7 +98,7 @@ std::vector<uint8_t> pad(std::string_view plain_text_utf8)
 }
 
 
-bool calculateHMAC(const std::array<uint8_t, KEYLEN>& hmac_key, const std::vector<uint8_t>& data, std::array<uint8_t, 32>& out_hmac)
+bool calculateHMAC(const SecureArray<uint8_t, KEYLEN>& hmac_key, const std::vector<uint8_t>& data, SecureArray<uint8_t, 32>& out_hmac)
 {
   out_hmac.fill(0);
 
@@ -119,9 +119,9 @@ bool calculateHMAC(const std::array<uint8_t, KEYLEN>& hmac_key, const std::vecto
   return true;
 }
 
-bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<uint8_t, KEYLEN>& hmac_key, const std::vector<uint8_t>& data)
+bool verifyHMAC(const SecureArray<uint8_t, 32>& expected_hmac, const SecureArray<uint8_t, KEYLEN>& hmac_key, const std::vector<uint8_t>& data)
 {
-  std::array<uint8_t, 32> calculated_hmac;
+  SecureArray<uint8_t, 32> calculated_hmac;
   if (!calculateHMAC(hmac_key, data, calculated_hmac)) {
     std::cerr<<"verifyHMAC Error calculating HMAC"<<std::endl;
     return false;
@@ -134,7 +134,7 @@ bool verifyHMAC(const std::array<uint8_t, 32>& expected_hmac, const std::array<u
 }
 
 
-bool encryptAES(const std::vector<uint8_t>& plaintext, const std::array<uint8_t, 32>& key, const std::array<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted)
+bool encryptAES(const std::vector<uint8_t>& plaintext, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted)
 {
   std::cout<<"encryptAES plaintext length: "<<plaintext.size()<<std::endl;
 
@@ -161,7 +161,7 @@ bool encryptAES(const std::vector<uint8_t>& plaintext, const std::array<uint8_t,
   return true;
 }
 
-bool decryptAES(const std::vector<uint8_t>& cypher, const std::array<uint8_t, 32>& key, const std::array<uint8_t, 16>& iv, std::vector<uint8_t>& out_decrypted)
+bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_decrypted)
 {
   std::cout<<"decryptAES cypher length: "<<cypher.size()<<std::endl;
 

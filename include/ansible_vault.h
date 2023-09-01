@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+#include "common.h"
+
 namespace vault {
 
 enum class DECRYPT_RESULT {
@@ -53,8 +55,8 @@ public:
         data.clear();
     }
 
-    std::array<uint8_t, 32> salt;
-    std::array<uint8_t, 32> hmac;
+    SecureArray<uint8_t, 32> salt;
+    SecureArray<uint8_t, 32> hmac;
     std::vector<uint8_t> data;
 };
 
@@ -69,7 +71,7 @@ bool is_encrypted(const std::string_view& content);
 // returns a UTF-8 encoded byte str of encrypted data.
 // The string contains a header identifying this as vault encrypted data and formatted to newline terminated lines of 80 characters.
 // This is suitable for dumping as is to a vault file.
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const std::array<uint8_t, 32>& salt, std::ostringstream& output_utf8);
+ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8);
 ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::ostringstream& output_utf8);
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8);

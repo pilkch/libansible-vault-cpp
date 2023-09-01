@@ -1,7 +1,5 @@
 #include <iomanip>
 
-#include <cryptopp/hex.h>
-
 #include "hex.h"
 
 namespace vault {
@@ -43,22 +41,10 @@ void BytesToHexString(const std::vector<uint8_t>& buffer, size_t line_length, st
     output<<std::setfill('0')<<std::setw(2)<<std::hex<<int(b);
   }
 
-  std::cout<<"BytesToHexString Buffer length: "<<buffer.size()<<std::endl;
+  //std::cout<<"BytesToHexString Buffer length: "<<buffer.size()<<std::endl;
 
   // Reset the stream flags
   output<<std::dec;
-}
-
-std::string DebugBytesToHexString(const std::span<uint8_t>& data)
-{
-  std::string result;
-  const bool uppercase = false;
-  CryptoPP::HexEncoder encoder(new CryptoPP::StringSink(result), uppercase);
-
-  encoder.Put(data.data(), data.size());
-  encoder.MessageEnd();
-
-  return result;
 }
 
 std::vector<uint8_t> HexStringToBytes(std::string_view data)

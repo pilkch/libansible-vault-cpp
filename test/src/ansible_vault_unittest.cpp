@@ -29,13 +29,13 @@ bool ReadFileAsText(const std::string& file_path, std::string& contents)
 
 
 template <size_t N>
-void CopyStringToBytes(std::string_view value, std::array<uint8_t, N>& out_bytes)
+void CopyStringToBytes(std::string_view value, vault::SecureArray<uint8_t, N>& out_bytes)
 {
+  // Clear the bytes in the output
   out_bytes.fill(0);
 
-  for (size_t i = 0; i < N && i < 32; i++) {
-    out_bytes[i] = value.data()[i];
-  }
+  // Copy at most N or the input length bytes to the output (If we are short we have filled with zero bytes above, if we are too long we truncate)
+  memcpy((char*)out_bytes.data(), value.data(), std::min<size_t>(N, value.length()));
 }
 
 }
@@ -45,8 +45,8 @@ TEST(AnsibleVault, TestEncryptDecryptAES256Simple)
 {
   const std::string plain_text = "My encrypted text.\nAnd another line.\n";
   const std::string password = "mytestpassword";
-  const std::string salt_utf8 = "ed3496252ad601cf571ac38eab55544fd9de4fc160e0053e688e1da1fbb98f40";
-  std::array<uint8_t, 32> salt;
+  const std::string salt_utf8 = "ed3496252ad601cf571ac38eab55544f";
+  vault::SecureArray<uint8_t, 32> salt;
   CopyStringToBytes(salt_utf8, salt);
 
   std::ostringstream encrypted;
