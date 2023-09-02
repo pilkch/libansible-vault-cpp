@@ -46,7 +46,7 @@ bool leakless_equals(const unsigned char* a, const unsigned char* b, std::size_t
     --len;
   }
 
-  return diff == 0;
+  return (diff == 0);
 }
 
 bool leakless_equals(const void* a, const void* b, std::size_t len)

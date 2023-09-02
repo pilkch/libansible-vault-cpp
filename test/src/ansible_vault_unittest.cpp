@@ -64,7 +64,7 @@ TEST(AnsibleVault, TestEncryptDecryptAES256Simple)
 
   EXPECT_STREQ(expected_vaulttext.c_str(), encrypted.str().c_str());
 
-  std::cout<<"encrypted.str(): "<<encrypted.str()<<std::endl;
+  //std::cout<<"encrypted.str(): "<<encrypted.str()<<std::endl;
 
   std::ostringstream decrypted;
   const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted.str(), password, decrypted);

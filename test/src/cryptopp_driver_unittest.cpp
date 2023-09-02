@@ -101,5 +101,5 @@ TEST(CryptoPPDriver, TestEncryptAESDecryptAES)
   EXPECT_TRUE(vault::cryptopp_driver::decryptAES(out_encrypted, key, iv, out_decrypted));
 
   const std::string plaintext_decrypted((const char*)out_decrypted.data(), out_decrypted.size());
-  EXPECT_STREQ(plaintext_decrypted.c_str(), plaintext_str.c_str());
+  EXPECT_STREQ(plaintext_decrypted.c_str(), plaintext.c_str());
 }

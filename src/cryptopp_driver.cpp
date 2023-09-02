@@ -25,7 +25,7 @@ namespace PKCS5_PBKDF2_HMAC {
 
 void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAndIV& out_keys)
 {
-  std::cout<<"CreateKeys with password: "<<password_and_salt.password<<", password len="<<password_and_salt.password.length()<<", salt len="<<password_and_salt.salt.size()<<std::endl;
+  //std::cout<<"CreateKeys with password: "<<password_and_salt.password<<", password len="<<password_and_salt.password.length()<<", salt len="<<password_and_salt.salt.size()<<std::endl;
 
   out_keys.clear();
 
@@ -39,7 +39,7 @@ void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAn
   CryptoPP::byte unused = 0;
   pbkdf.DeriveKey(derived_bytes.data(), DERIVED_KEY_LENGTH, unused, (const CryptoPP::byte*)password_and_salt.password.data(), password_and_salt.password.length(), (const CryptoPP::byte*)password_and_salt.salt.data(), password_and_salt.salt.size(), ITERATIONS);
 
-  std::cout<<"Derived: "<<DebugBytesToHexString(derived_bytes)<<std::endl;
+  //std::cout<<"Derived: "<<DebugBytesToHexString(derived_bytes)<<std::endl;
 
   // Get the parts from the derived key material
   // [0..keylen-1]: encryption key
@@ -84,7 +84,7 @@ size_t GetUnpaddedLength(const uint8_t* decrypted, size_t decrypted_length)
 std::vector<uint8_t> pad(std::string_view plaintext)
 {
   const size_t padded_length = GetPadLength(plaintext.length());
-  std::cout<<"pad padded_length: "<<padded_length<<std::endl;
+  //std::cout<<"pad padded_length: "<<padded_length<<std::endl;
 
   // Create an padded vector with all the bytes set to the padded length
   std::vector<uint8_t> padded(plaintext.length() + padded_length, uint8_t(padded_length));
@@ -136,11 +136,11 @@ bool verifyHMAC(const SecureArray<uint8_t, 32>& expected_hmac, const SecureArray
 
 bool encryptAES(std::string_view plaintext, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted)
 {
-  std::cout<<"encryptAES plaintext length: "<<plaintext.size()<<std::endl;
+  //std::cout<<"encryptAES plaintext length: "<<plaintext.size()<<std::endl;
 
-  std::cout<<"Original plaintext length: "<<plaintext.length()<<std::endl;
+  //std::cout<<"Original plaintext length: "<<plaintext.length()<<std::endl;
   const std::vector<uint8_t> plaintext_padded = PKCS7::pad(plaintext);
-  std::cout<<"Padded plaintext length: "<<plaintext_padded.size()<<std::endl;
+  //std::cout<<"Padded plaintext length: "<<plaintext_padded.size()<<std::endl;
 
   out_encrypted.assign(plaintext_padded.size(), 0);
 
@@ -157,17 +157,17 @@ bool encryptAES(std::string_view plaintext, const SecureArray<uint8_t, 32>& key,
       )
     );
   } catch(const CryptoPP::Exception& e) {
-      std::cerr<<e.what()<<std::endl;
-      return false;
+    std::cerr<<e.what()<<std::endl;
+    return false;
   }
 
-  std::cout<<"encryptAES Encoded length: "<<out_encrypted.size()<<", text: "<<std::string((const char*)out_encrypted.data(), out_encrypted.size())<<std::endl;
+  //std::cout<<"encryptAES Encoded length: "<<out_encrypted.size()<<", text: "<<std::string((const char*)out_encrypted.data(), out_encrypted.size())<<std::endl;
   return true;
 }
 
 bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_decrypted)
 {
-  std::cout<<"decryptAES cypher length: "<<cypher.size()<<std::endl;
+  //std::cout<<"decryptAES cypher length: "<<cypher.size()<<std::endl;
 
   out_decrypted.assign(cypher.size(), 0);
 
@@ -191,7 +191,7 @@ bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 3
   // Truncate the output to the correct size
   out_decrypted.resize(unpadded_length);
 
-  std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<std::string((const char*)out_decrypted.data(), out_decrypted.size())<<std::endl;
+  //std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<std::string((const char*)out_decrypted.data(), out_decrypted.size())<<std::endl;
   return true;
 }
 

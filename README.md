@@ -4,7 +4,8 @@
 
 **Warning: I am not an expert. This library is purely for my own curiosity. Do not use it in production.**  
 
-I try to use as much third party code as possible. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.
+We try to use as much third party code as possible. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.  
+We use SecureArray which clears the array when released, whenever we store sensitive values such as the salt, hmac, key, and iv.
 
 ## Safer, battle hardened, tested, more sensible options for storing secrets (Use these instead)
 
@@ -24,9 +25,16 @@ I try to use as much third party code as possible. This library is basically jus
 
 ## I'm Brave/Fool Hardy! Building
 
+### Install Prerquisites
+
+```bash
+sudo yum install cryptopp-devel gtest-devel
+```
+
 ### Build the library and unit tests
 
 ```bash
+cmake .
 make
 ```
 

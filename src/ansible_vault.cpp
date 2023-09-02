@@ -24,11 +24,13 @@ void output_to_string_wrap_80_characters(std::string_view input, std::ostringstr
   while (!input.empty()) {
     // Get up to 32 more characters from the string
     const size_t line_length = std::min<size_t>(input.length(), max_line_length);
-    if (input.length() > max_line_length) output<<input.substr(0, line_length)<<"\n";
-    else {
+    if (input.length() > max_line_length) {
+      output<<input.substr(0, line_length)<<"\n";
+    } else {
       // This is the last line
       output<<input.substr(0, line_length);
     }
+
     input.remove_prefix(line_length);
   }
 }
@@ -113,9 +115,9 @@ DECRYPT_RESULT ParseVaultContent(std::string_view& original_encrypted_data, Vaul
 {
   out_vault_content.clear();
 
-  std::cout<<"ParseVaultContent Original vault text: "<<original_encrypted_data<<std::endl;
+  //std::cout<<"ParseVaultContent Original vault text: "<<original_encrypted_data<<std::endl;
   const std::string decrypted_once_data(DecodeHexStringToString(original_encrypted_data));
-  std::cout<<"ParseVaultContent Decrypted once: "<<decrypted_once_data<<std::endl;
+  //std::cout<<"ParseVaultContent Decrypted once: "<<decrypted_once_data<<std::endl;
   std::string_view encrypted_data(decrypted_once_data);
 
   // Salt
@@ -142,7 +144,7 @@ DECRYPT_RESULT ParseVaultContent(std::string_view& original_encrypted_data, Vaul
   encrypted_data.remove_prefix(found + 1);
 
 
-  std::cout<<"ParseVaultContent salt: \""<<salt_hex<<"\", hmac: \""<<hmac_hex<<"\", data: \""<<data_hex<<"\""<<std::endl;
+  //std::cout<<"ParseVaultContent salt: \""<<salt_hex<<"\", hmac: \""<<hmac_hex<<"\", data: \""<<data_hex<<"\""<<std::endl;
 
   // Get the actual values
   HexStringToBytes(salt_hex, out_vault_content.salt);
@@ -169,9 +171,9 @@ ENCRYPT_RESULT encrypt(std::string_view plaintext, const PasswordAndSalt& passwo
   EncryptionKeyHMACKeyAndIV out_keys;
   cryptopp_driver::PKCS5_PBKDF2_HMAC::CreateKeys(password_and_salt, out_keys);
 
-  std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
-  std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
-  std::cout<<"IV: "<<out_keys.iv.size()<<", "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
+  //std::cout<<"Key 1: "<<out_keys.encryption_key.size()<<", "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
+  //std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
+  //std::cout<<"IV: "<<out_keys.iv.size()<<", "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
   std::vector<uint8_t> encrypted;
   if (!cryptopp_driver::encryptAES(plaintext, out_keys.encryption_key, out_keys.iv, encrypted)) {
@@ -238,11 +240,11 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
     return result;
   }
 
-  std::cout<<"decrypt vault_content.data length: "<<vault_content.data.size()<<std::endl;
+  //std::cout<<"decrypt vault_content.data length: "<<vault_content.data.size()<<std::endl;
 
-  std::cout<<"salt "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
-  std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
-  std::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
+  //std::cout<<"salt "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
+  //std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
+  //td::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
 
   const PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
 
@@ -250,12 +252,12 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
   cryptopp_driver::PKCS5_PBKDF2_HMAC::CreateKeys(password_and_salt, out_keys);
 
   // key1, key2, and iv
-  std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
-  std::cout<<"Key 2 length: "<<out_keys.hmac_key.size()<<", value: "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
-  std::cout<<"IV length: "<<out_keys.iv.size()<<", value: "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
+  //std::cout<<"Key 1 length: "<<out_keys.encryption_key.size()<<", value: "<<DebugBytesToHexString(out_keys.encryption_key)<<std::endl;
+  //std::cout<<"Key 2 length: "<<out_keys.hmac_key.size()<<", value: "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
+  //std::cout<<"IV length: "<<out_keys.iv.size()<<", value: "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
   const std::vector<uint8_t>& cypher = vault_content.data;
-  std::cout<<"decrypt cyper.size: "<<cypher.size()<<std::endl;
+  //std::cout<<"decrypt cyper.size: "<<cypher.size()<<std::endl;
 
   // expected, key, data
   const SecureArray<uint8_t, 32>& expected_hmac_trimmed = vault_content.hmac;
@@ -264,7 +266,7 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
     return DECRYPT_RESULT::ERROR_VERIFYING_HMAC;
   }
 
-  std::cout<<"Signature matches - decrypting"<<std::endl;
+  //std::cout<<"Signature matches - decrypting"<<std::endl;
   std::vector<uint8_t> decrypted;
   if (!cryptopp_driver::decryptAES(cypher, out_keys.encryption_key, out_keys.iv, decrypted)) {
     std::cerr<<"Error decrypting"<<std::endl;
@@ -272,7 +274,7 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
   }
 
   output_utf8<<std::string((const char*)decrypted.data(), decrypted.size());
-  std::cout<<"Decoded: \""<<output_utf8.str()<<"\""<<std::endl;
+  //std::cout<<"Decoded: \""<<output_utf8.str()<<"\""<<std::endl;
 
   return DECRYPT_RESULT::OK;
 }
