@@ -84,11 +84,7 @@ TEST(CryptoPPDriver, TestCalculateHMACAndVerifyHMAC)
 TEST(CryptoPPDriver, TestEncryptAESDecryptAES)
 {
   // Example generated on this web page https://angrytools.com/text-converter/aes/
-  // NOTE: With the call to PKCS7::pad the plaintext string is slightly longer, without it the string gets truncated
-  // The website can successfully decode without the padding, so, I dunno?
-  const std::string plaintext_str = "Science fiction books explore futuristic concepts in an imaginative way, dealing with advanced science that may or may not be possible, along with the consequences of how such creations would impact society. Popular subject matter includes alien-human interactions, intergalactic exploration and time travel.";
-
-  const std::vector<uint8_t> plaintext = vault::cryptopp_driver::PKCS7::pad(plaintext_str);
+  const std::string plaintext = "Science fiction books explore futuristic concepts in an imaginative way, dealing with advanced science that may or may not be possible, along with the consequences of how such creations would impact society. Popular subject matter includes alien-human interactions, intergalactic exploration and time travel.";
 
   vault::SecureArray<uint8_t, 32> key;
   CopyStringToBytes("686edb9e07863f0b2f4a6ae42c33f903", key);

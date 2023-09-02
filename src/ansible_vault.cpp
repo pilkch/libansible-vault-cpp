@@ -157,11 +157,11 @@ DECRYPT_RESULT ParseVaultContent(std::string_view& original_encrypted_data, Vaul
 
 
 
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& password_and_salt, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(std::string_view plaintext, const PasswordAndSalt& password_and_salt, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
 {
   output_utf8.clear();
 
-  if (is_encrypted(plain_text_utf8)) {
+  if (is_encrypted(plaintext)) {
     return ENCRYPT_RESULT::ERROR_ALREADY_ENCRYPTED;
   }
 
@@ -173,12 +173,8 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
   std::cout<<"Key 2: "<<out_keys.hmac_key.size()<<", "<<DebugBytesToHexString(out_keys.hmac_key)<<std::endl;
   std::cout<<"IV: "<<out_keys.iv.size()<<", "<<DebugBytesToHexString(out_keys.iv)<<std::endl;
 
-  std::cout<<"Original plain_text_utf8 length: "<<plain_text_utf8.length()<<std::endl;
-  const std::vector<uint8_t> data_padded = cryptopp_driver::PKCS7::pad(plain_text_utf8);
-  std::cout<<"Padded data length: "<<data_padded.size()<<std::endl;
-
   std::vector<uint8_t> encrypted;
-  if (!cryptopp_driver::encryptAES(data_padded, out_keys.encryption_key, out_keys.iv, encrypted)) {
+  if (!cryptopp_driver::encryptAES(plaintext, out_keys.encryption_key, out_keys.iv, encrypted)) {
     std::cerr<<"encrypt Error encrypting with AES"<<std::endl;
     return ENCRYPT_RESULT::ERROR_AES_ENCRYPTION_FAILED;
   }
@@ -189,8 +185,8 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
     return ENCRYPT_RESULT::ERROR_CALCULATING_HMAC;
   }
 
-  std::cout<<"Original plain text length: "<<plain_text_utf8.length()<<", padded length: "<<data_padded.size()<<std::endl;
-  std::cout<<"Creating content salt len: "<<password_and_salt.salt.size()<<", hmacHash len: "<<hmacHash.size()<<", encrypted len: "<<encrypted.size()<<std::endl;
+  //std::cout<<"Original plain text length: "<<plaintext.length()<<std::endl;
+  //std::cout<<"Creating content salt len: "<<password_and_salt.salt.size()<<", hmacHash len: "<<hmacHash.size()<<", encrypted len: "<<encrypted.size()<<std::endl;
 
   std::ostringstream content_hex;
   BytesToHexString(password_and_salt.salt, content_hex);
@@ -211,19 +207,19 @@ ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, const PasswordAndSalt& 
   return ENCRYPT_RESULT::OK;
 }
 
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(std::string_view plaintext, std::string_view password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8)
 {
   const PasswordAndSalt password_and_salt(password_utf8, salt);
-  return encrypt(plain_text_utf8, password_and_salt, std::nullopt, output_utf8);
+  return encrypt(plaintext, password_and_salt, std::nullopt, output_utf8);
 }
 
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(std::string_view plaintext, std::string_view password_utf8, std::ostringstream& output_utf8)
 {
   PasswordAndSalt password_and_salt(password_utf8);
 
   cryptopp_driver::fill_random(password_and_salt.salt);
 
-  return encrypt(plain_text_utf8, password_and_salt, std::nullopt, output_utf8);
+  return encrypt(plaintext, password_and_salt, std::nullopt, output_utf8);
 }
 
 DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
