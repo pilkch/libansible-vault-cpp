@@ -47,7 +47,7 @@ const std::string VAULT_MAGIC = "$ANSIBLE_VAULT";
 const std::string VAULT_VERSION = "1.1";
 const std::string VAULT_CIPHER_AES256 = "AES256";
 
-bool is_encrypted(const std::string_view& content)
+bool is_encrypted(const SecureString& content)
 {
   return content.starts_with(VAULT_MAGIC);
 }
@@ -159,7 +159,7 @@ DECRYPT_RESULT ParseVaultContent(std::string_view& original_encrypted_data, Vaul
 
 
 
-ENCRYPT_RESULT encrypt(std::string_view plaintext, const PasswordAndSalt& password_and_salt, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(const SecureString& plaintext, const PasswordAndSalt& password_and_salt, std::optional<std::string_view> vault_id_utf8, std::ostringstream& output_utf8)
 {
   output_utf8.clear();
 
@@ -209,22 +209,22 @@ ENCRYPT_RESULT encrypt(std::string_view plaintext, const PasswordAndSalt& passwo
   return ENCRYPT_RESULT::OK;
 }
 
-ENCRYPT_RESULT encrypt(std::string_view plaintext, std::string_view password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(const SecureString& plaintext, const SecureString& password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8)
 {
-  const PasswordAndSalt password_and_salt(password_utf8, salt);
+  const PasswordAndSalt password_and_salt(password_utf8.get_string_view(), salt);
   return encrypt(plaintext, password_and_salt, std::nullopt, output_utf8);
 }
 
-ENCRYPT_RESULT encrypt(std::string_view plaintext, std::string_view password_utf8, std::ostringstream& output_utf8)
+ENCRYPT_RESULT encrypt(const SecureString& plaintext, const SecureString& password_utf8, std::ostringstream& output_utf8)
 {
-  PasswordAndSalt password_and_salt(password_utf8);
+  PasswordAndSalt password_and_salt(password_utf8.get_string_view());
 
   cryptopp_driver::fill_random(password_and_salt.salt);
 
   return encrypt(plaintext, password_and_salt, std::nullopt, output_utf8);
 }
 
-DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8)
+DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, const SecureString& password_utf8, SecureString& output_utf8)
 {
   output_utf8.clear();
 
@@ -242,11 +242,12 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
 
   //std::cout<<"decrypt vault_content.data length: "<<vault_content.data.size()<<std::endl;
 
-  //std::cout<<"salt "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
+  //std::cout<<"password length: "<<password_utf8.length()<<", data: "<<password_utf8.get_string_view()<<std::endl;
+  //std::cout<<"salt: "<<DebugBytesToHexString(vault_content.salt)<<std::endl;
   //std::cout<<"hmac: "<<DebugBytesToHexString(vault_content.hmac)<<std::endl;
-  //td::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
+  //std::cout<<"data: "<<DebugBytesToHexString(vault_content.data)<<std::endl;
 
-  const PasswordAndSalt password_and_salt(password_utf8, vault_content.salt);
+  const PasswordAndSalt password_and_salt(password_utf8.get_string_view(), vault_content.salt);
 
   EncryptionKeyHMACKeyAndIV out_keys;
   cryptopp_driver::PKCS5_PBKDF2_HMAC::CreateKeys(password_and_salt, out_keys);
@@ -267,14 +268,12 @@ DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view passwor
   }
 
   //std::cout<<"Signature matches - decrypting"<<std::endl;
-  std::vector<uint8_t> decrypted;
-  if (!cryptopp_driver::decryptAES(cypher, out_keys.encryption_key, out_keys.iv, decrypted)) {
+  if (!cryptopp_driver::decryptAES(cypher, out_keys.encryption_key, out_keys.iv, output_utf8)) {
     std::cerr<<"Error decrypting"<<std::endl;
     return DECRYPT_RESULT::ERROR_DECRYPTING_CONTENT;
   }
 
-  output_utf8<<std::string((const char*)decrypted.data(), decrypted.size());
-  //std::cout<<"Decoded: \""<<output_utf8.str()<<"\""<<std::endl;
+  //std::cout<<"Decoded length: "<<output_utf8.length()<<", content: \""<<output_utf8.c_str()<<"\""<<std::endl;
 
   return DECRYPT_RESULT::OK;
 }

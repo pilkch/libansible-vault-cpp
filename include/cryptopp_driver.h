@@ -19,15 +19,15 @@ void CreateKeys(const PasswordAndSalt& password_and_salt, EncryptionKeyHMACKeyAn
 
 namespace PKCS7 {
 
-std::vector<uint8_t> pad(std::string_view plaintext);
+void pad(const SecureString& plaintext, SecureString& out_padded);
 
 }
 
 bool calculateHMAC(const SecureArray<uint8_t, 32>& hmac_key, const std::vector<uint8_t>& data, SecureArray<uint8_t, 32>& out_hmac);
 bool verifyHMAC(const SecureArray<uint8_t, 32>& expected_hmac, const SecureArray<uint8_t, 32>& hmac_key, const std::vector<uint8_t>& data);
 
-bool encryptAES(std::string_view plaintext, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted);
-bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_decrypted);
+bool encryptAES(const SecureString& plaintext, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted);
+bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, SecureString& out_decrypted);
 
 }
 

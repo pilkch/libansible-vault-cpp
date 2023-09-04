@@ -41,7 +41,7 @@ inline void BytesToHexString(const SecureArray<uint8_t, N>& buffer, std::ostring
 }
 
 
-inline std::string DebugBytesToHexString(std::span<uint8_t> buffer)
+inline std::string DebugBytesToHexString(std::span<const uint8_t> buffer)
 {
   std::ostringstream output;
 

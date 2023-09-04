@@ -81,18 +81,16 @@ size_t GetUnpaddedLength(const uint8_t* decrypted, size_t decrypted_length)
   return decrypted_length - pad_length;
 }
 
-std::vector<uint8_t> pad(std::string_view plaintext)
+void pad(const SecureString& plaintext, SecureString& out_padded)
 {
-  const size_t padded_length = GetPadLength(plaintext.length());
-  //std::cout<<"pad padded_length: "<<padded_length<<std::endl;
+  const size_t pad_length = GetPadLength(plaintext.length());
+  //std::cout<<"pad pad_length: "<<pad_length<<std::endl;
 
   // Create an padded vector with all the bytes set to the padded length
-  std::vector<uint8_t> padded(plaintext.length() + padded_length, uint8_t(padded_length));
+  out_padded.assign(plaintext.length() + pad_length, pad_length);
 
   // Then copy our plain text data over the unpadded part at the start
-  memcpy(padded.data(), plaintext.data(), plaintext.length());
-
-  return padded;
+  memcpy(out_padded.data(), plaintext.c_str(), plaintext.length());
 }
 
 }
@@ -134,15 +132,16 @@ bool verifyHMAC(const SecureArray<uint8_t, 32>& expected_hmac, const SecureArray
 }
 
 
-bool encryptAES(std::string_view plaintext, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted)
+bool encryptAES(const SecureString& plaintext, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_encrypted)
 {
   //std::cout<<"encryptAES plaintext length: "<<plaintext.size()<<std::endl;
 
   //std::cout<<"Original plaintext length: "<<plaintext.length()<<std::endl;
-  const std::vector<uint8_t> plaintext_padded = PKCS7::pad(plaintext);
+  SecureString plaintext_padded;
+  PKCS7::pad(plaintext, plaintext_padded);
   //std::cout<<"Padded plaintext length: "<<plaintext_padded.size()<<std::endl;
 
-  out_encrypted.assign(plaintext_padded.size(), 0);
+  out_encrypted.assign(plaintext_padded.length(), 0);
 
   try {
     CryptoPP::CTR_Mode<CryptoPP::AES>::Encryption e;
@@ -151,7 +150,7 @@ bool encryptAES(std::string_view plaintext, const SecureArray<uint8_t, 32>& key,
     // The StreamTransformationFilter adds padding
     //  as required. ECB and CBC Mode must be padded
     //  to the block size of the cipher.
-    CryptoPP::ArraySource(static_cast<const CryptoPP::byte*>(plaintext_padded.data()), plaintext_padded.size(), true,
+    CryptoPP::ArraySource((const CryptoPP::byte*)plaintext_padded.c_str(), plaintext_padded.length(), true,
       new CryptoPP::StreamTransformationFilter(e,
         new CryptoPP::ArraySink(static_cast<CryptoPP::byte*>(out_encrypted.data()), out_encrypted.size())
       )
@@ -165,7 +164,7 @@ bool encryptAES(std::string_view plaintext, const SecureArray<uint8_t, 32>& key,
   return true;
 }
 
-bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, std::vector<uint8_t>& out_decrypted)
+bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 32>& key, const SecureArray<uint8_t, 16>& iv, SecureString& out_decrypted)
 {
   //std::cout<<"decryptAES cypher length: "<<cypher.size()<<std::endl;
 
@@ -177,7 +176,7 @@ bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 3
 
     CryptoPP::ArraySource(static_cast<const uint8_t*>(cypher.data()), cypher.size(), true,
       new CryptoPP::StreamTransformationFilter(d,
-        new CryptoPP::ArraySink(static_cast<CryptoPP::byte*>(out_decrypted.data()), out_decrypted.size())
+        new CryptoPP::ArraySink((CryptoPP::byte*)out_decrypted.data(), out_decrypted.length())
       )
     );
   } catch(const CryptoPP::Exception& e) {
@@ -189,9 +188,9 @@ bool decryptAES(const std::vector<uint8_t>& cypher, const SecureArray<uint8_t, 3
   const size_t unpadded_length = PKCS7::GetUnpaddedLength((const uint8_t*)out_decrypted.data(), cypher.size());
 
   // Truncate the output to the correct size
-  out_decrypted.resize(unpadded_length);
+  out_decrypted.shrink(unpadded_length);
 
-  //std::cout<<"decryptAES Decoded length: "<<out_decrypted.size()<<", text: "<<std::string((const char*)out_decrypted.data(), out_decrypted.size())<<std::endl;
+  //std::cout<<"decryptAES Decoded length: "<<out_decrypted.length()<<", text: "<<std::string((const char*)out_decrypted.data(), out_decrypted.length())<<std::endl;
   return true;
 }
 

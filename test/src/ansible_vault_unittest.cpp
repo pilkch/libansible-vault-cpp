@@ -43,8 +43,10 @@ void CopyStringToBytes(std::string_view value, vault::SecureArray<uint8_t, N>& o
 
 TEST(AnsibleVault, TestEncryptDecryptAES256Simple)
 {
-  const std::string plain_text = "My encrypted text.\nAnd another line.\n";
-  const std::string password = "mytestpassword";
+  const std::string plain_text_str = "My encrypted text.\nAnd another line.\n";
+  const vault::SecureString plain_text(plain_text_str.c_str(), plain_text_str.length());
+  const std::string password_str = "mytestpassword";
+  const vault::SecureString password(password_str.c_str(), password_str.length());
   const std::string salt_utf8 = "ed3496252ad601cf571ac38eab55544f";
   vault::SecureArray<uint8_t, 32> salt;
   CopyStringToBytes(salt_utf8, salt);
@@ -66,26 +68,28 @@ TEST(AnsibleVault, TestEncryptDecryptAES256Simple)
 
   //std::cout<<"encrypted.str(): "<<encrypted.str()<<std::endl;
 
-  std::ostringstream decrypted;
+  vault::SecureString decrypted;
   const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted.str(), password, decrypted);
   ASSERT_EQ(vault::DECRYPT_RESULT::OK, decryption_result);
 
-  ASSERT_STREQ(decrypted.str().c_str(), plain_text.c_str());
+  ASSERT_STREQ(decrypted.c_str(), plain_text.c_str());
 }
 
 TEST(AnsibleVault, TestEncryptDecryptAES256)
 {
-  const std::string original_plaintext = "Setec Astronomy";
-  const std::string password = "default";
+  const std::string original_plaintext_str = "Setec Astronomy";
+  const vault::SecureString original_plaintext(original_plaintext_str.c_str(), original_plaintext_str.length());
+  const std::string password_str = "default";
+  const vault::SecureString password(password_str.c_str(), password_str.length());
   std::ostringstream encrypted;
   const vault::ENCRYPT_RESULT encryption_result = vault::encrypt(original_plaintext, password, encrypted);
   ASSERT_EQ(vault::ENCRYPT_RESULT::OK, encryption_result);
 
-  std::ostringstream output_plaintext_result;
+  vault::SecureString output_plaintext_result;
   const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted.str(), password, output_plaintext_result);
   ASSERT_EQ(vault::DECRYPT_RESULT::OK, decryption_result);
 
-  ASSERT_STREQ(output_plaintext_result.str().c_str(), original_plaintext.c_str());
+  ASSERT_STREQ(output_plaintext_result.c_str(), original_plaintext.c_str());
 }
 
 TEST(AnsibleVault, TestParseBadVaultFileNoSignature)
@@ -175,13 +179,14 @@ TEST(AnsibleVault, TestDecryptAES256SampleTxt)
   std::string encrypted;
   ASSERT_TRUE(ReadFileAsText("test/data/sample.txt", encrypted));
 
-  const std::string password = "ansible";
+  const std::string password_str = "ansible";
+  const vault::SecureString password(password_str.c_str(), password_str.length());
 
-  std::ostringstream decrypted;
+  vault::SecureString decrypted;
   const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted, password, decrypted);
   ASSERT_EQ(vault::DECRYPT_RESULT::OK, decryption_result);
 
-  ASSERT_STREQ(decrypted.str().c_str(), "foobar\n");
+  ASSERT_STREQ(decrypted.c_str(), "foobar\n");
 }
 
 
@@ -192,11 +197,12 @@ TEST(AnsibleVault, TestDecryptAES256LargerTxt)
   std::string encrypted;
   ASSERT_TRUE(ReadFileAsText("test/data/larger.txt", encrypted));
 
-  const std::string password = "shibboleet";
+  const std::string password_str = "shibboleet";
+  const vault::SecureString password(password_str.c_str(), password_str.length());
 
-  std::ostringstream decrypted;
+  vault::SecureString decrypted;
   const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted, password, decrypted);
   ASSERT_EQ(vault::DECRYPT_RESULT::OK, decryption_result);
 
-  ASSERT_STREQ(decrypted.str().c_str(), "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare ullamcorper odio a lacinia. Duis eget placerat nunc. Cras vel sollicitudin sapien. Donec ac elit in felis pulvinar posuere. Sed laoreet sagittis nunc et commodo. Nulla posuere euismod enim nec ornare. Aliquam sed metus sed mauris eleifend sollicitudin. Praesent et eros elit. Suspendisse blandit sagittis mi, id efficitur tellus. Nunc at aliquam metus, ut euismod risus.\n");
+  ASSERT_STREQ(decrypted.c_str(), "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare ullamcorper odio a lacinia. Duis eget placerat nunc. Cras vel sollicitudin sapien. Donec ac elit in felis pulvinar posuere. Sed laoreet sagittis nunc et commodo. Nulla posuere euismod enim nec ornare. Aliquam sed metus sed mauris eleifend sollicitudin. Praesent et eros elit. Suspendisse blandit sagittis mi, id efficitur tellus. Nunc at aliquam metus, ut euismod risus.\n");
 }

@@ -63,7 +63,7 @@ public:
 DECRYPT_RESULT ParseVaultContent(std::string_view& encrypted_data, VaultContent& out_vault_content);
 
 
-bool is_encrypted(const std::string_view& content);
+bool is_encrypted(const SecureString& content);
 
 // Encrypt some plain text in the encrypted vault format
 // https://github.com/ansible/ansible/blob/56b67cccc52312366b9ceed02a6906452864e04d/lib/ansible/parsing/vault/__init__.py#L587
@@ -71,9 +71,9 @@ bool is_encrypted(const std::string_view& content);
 // returns a UTF-8 encoded byte str of encrypted data.
 // The string contains a header identifying this as vault encrypted data and formatted to newline terminated lines of 80 characters.
 // This is suitable for dumping as is to a vault file.
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8);
-ENCRYPT_RESULT encrypt(std::string_view plain_text_utf8, std::string_view password_utf8, std::ostringstream& output_utf8);
+ENCRYPT_RESULT encrypt(const SecureString& plain_text_utf8, const SecureString& password_utf8, const SecureArray<uint8_t, 32>& salt, std::ostringstream& output_utf8);
+ENCRYPT_RESULT encrypt(const SecureString& plain_text_utf8, const SecureString& password_utf8, std::ostringstream& output_utf8);
 
-DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, std::string_view password_utf8, std::ostringstream& output_utf8);
+DECRYPT_RESULT decrypt(std::string_view encrypted_utf8, const SecureString& password_utf8, SecureString& output_utf8);
 
 }

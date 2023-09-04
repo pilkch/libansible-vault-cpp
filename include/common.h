@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstring>
 #include <span>
 #include <string_view>
 
@@ -51,6 +52,128 @@ public:
 
 private:
   std::array<T, count> buffer;
+};
+
+
+class SecureString {
+public:
+  SecureString() :
+    value(nullptr),
+    len(0),
+    capacity(0)
+  {
+    // Default length
+    const size_t DEFAULT_LENGTH = 4096;
+    assign(DEFAULT_LENGTH, 0);
+  }
+  SecureString(const char* _value, size_t _length) :
+    value(nullptr),
+    len(0),
+    capacity(0)
+  {
+    assign(_value, _length);
+  }
+  ~SecureString()
+  {
+    // Clear the value before it is released
+    clear();
+
+    if (value != nullptr) {
+      delete[] value;
+      value = nullptr;
+      len = 0;
+      capacity = 0;
+    }
+  }
+
+  constexpr char* data() { return value; }
+  constexpr const char* c_str() const { return value; }
+  constexpr char* c_str() { return value; }
+  constexpr size_t length() const { return len; }
+
+  constexpr std::string_view get_string_view() const { return std::string_view(value, len); }
+
+  void clear()
+  {
+    if (value != nullptr) {
+      secure_clear(value, capacity);
+    }
+
+    len = 0;
+  }
+
+  void assign(size_t _length, char c)
+  {
+    clear_and_resize(_length);
+
+    if (_length != 0) {
+      for (size_t i = 0; i < _length; i++) {
+        value[i] = c;
+      }
+      len = _length;
+      value[len] = 0; // Set the null terminator
+    }
+  }
+
+  void assign(const char* _value, size_t _length)
+  {
+    clear_and_resize(_length);
+
+    if ((_value != nullptr) && (_length != 0)) {
+      memcpy(value, _value, _length);
+      len = _length;
+      value[len] = 0; // Set the null terminator
+    }
+  }
+
+  void shrink(size_t _length)
+  {
+    if ((value != nullptr) && (_length < len)) {
+      // Clear the bytes at the end
+      secure_clear(value + _length, (len - _length));
+
+      // Now set our length to the shorter value
+      len = _length;
+    }
+  }
+
+  constexpr bool starts_with(std::string_view prefix) const
+  {
+    if ((value == nullptr) || (len == 0) || prefix.empty() || (prefix.size() > len)) {
+      return false;
+    }
+
+    return (memcmp(prefix.data(), value, prefix.size()) == 0);
+  }
+
+private:
+  void clear_and_resize(size_t _length)
+  {
+    clear();
+
+    // If the new length is larger than the capacity then we need to reallocate
+    if (_length + 1 > capacity) {
+      if (value != nullptr) {
+        delete[] value;
+        value = nullptr;
+        len = 0;
+        capacity = 0;
+      }
+    }
+
+    // If we destroyed the buffer then create a larger one here
+    if (value == nullptr) {
+      value = new char[_length + 1];
+      capacity = _length + 1;
+    }
+
+    // Finally we can set our new length
+    len = _length;
+  }
+
+  char* value;
+  size_t len;
+  size_t capacity;
 };
 
 
