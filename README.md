@@ -4,8 +4,9 @@
 
 **Warning: I am not an expert. This library is purely for my own curiosity. Do not use it in production.**  
 
-We try to use as much third party code as possible. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.  
-We use SecureArray and SecureString which clear the array when released, whenever we store sensitive values such as the vault content, password, salt, hmac, key, and iv.
+- We try to use as much third party code as possible. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.  
+- We use SecureArray and SecureString which clear the array when released, whenever we store sensitive values such as the vault content, password, salt, hmac, key, and iv.
+- libansible-vault-cpp is *not* a replacement for the ansible-vault tool. That is a fully featured tool for working with ansible vault files. libansible-vault-cpp is just a library that can encrypt/decrypt ansible vault files.
 
 ## Safer, battle hardened, tested, more sensible options for storing secrets (Use these instead)
 
@@ -23,7 +24,7 @@ We use SecureArray and SecureString which clear the array when released, wheneve
 - https://github.com/dani-garcia/vaultwarden
 - https://www.hashicorp.com/products/vault
 
-## I'm Brave/Fool Hardy! Building
+## I'm Brave/Fool Hardy! Building libansible-vault-cpp
 
 ### Install Prerquisites
 
@@ -64,7 +65,7 @@ $ANSIBLE_VAULT;1.1;AES256
 3730
 ```
 
-### With Vault ID (Not supported by ansible-vault-cpp)
+### With Vault ID (Not supported by libansible-vault-cpp)
 
 ```
 $ANSIBLE_VAULT;1.2;AES256;myvaultid
@@ -95,7 +96,7 @@ Decryption is basically the reverse:
 5. Verify [HMAC](https://www.cryptopp.com/wiki/HMAC) with SHA256 for the the encrypted data matches the expected hmachash
 6. Derived encryption key and IV are used to key a block cypher for [AES256 decryption](https://www.cryptopp.com/wiki/Advanced_Encryption_Standard)
 
-## Standard Red Hat ansible-vault Executable Usage for Testing Compatibility (Not ansible-vault-cpp)
+## Standard Red Hat ansible-vault Executable Usage for Testing Compatibility (Not libansible-vault-cpp)
 
 https://stackoverflow.com/questions/43467180/how-to-decrypt-string-with-ansible-vault-2-3-0
 
