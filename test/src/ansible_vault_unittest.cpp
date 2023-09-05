@@ -8,6 +8,8 @@
 
 namespace {
 
+const size_t max_file_size_bytes = 1 * 1024 * 1024;
+
 bool ReadFileAsText(const std::string& file_path, std::string& contents)
 {
   contents.clear();
@@ -18,10 +20,19 @@ bool ReadFileAsText(const std::string& file_path, std::string& contents)
     return false;
   }
 
+  // Get the file size
   file.seekg(0, std::ios::end);
-  contents.reserve(file.tellg());
+  const size_t file_size_bytes = file.tellg();
+
+  // Check if the file is too large
+  if (file_size_bytes > max_file_size_bytes) {
+    std::cerr<<"Error file \""<<file_path<<"\" is too large"<<std::endl;
+    return false;
+  }
+
   file.seekg(0, std::ios::beg);
 
+  contents.reserve(file_size_bytes);
   contents.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
   return true;
