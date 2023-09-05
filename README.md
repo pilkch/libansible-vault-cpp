@@ -6,7 +6,12 @@
 
 - We try to use as much third party code as possible. This library is basically just a wrapper around [CryptoPP](https://www.cryptopp.com/) with some glue code to read and write ansible vault files.  
 - We use SecureArray and SecureString which clear the array when released, whenever we store sensitive values such as the vault content, password, salt, hmac, key, and iv.
-- libansible-vault-cpp is *not* a replacement for the ansible-vault tool. That is a fully featured tool for working with ansible vault files. libansible-vault-cpp is just a library that can encrypt/decrypt ansible vault files.
+
+## Limitations
+
+- Does not support the Vault ID part of the ansible vault format.
+- Apart from some basic unit tests this is basically untested code. It is basically experimental code, do **not** trust it with your secrets!
+- libansible-vault-cpp is just a library that can encrypt/decrypt ansible vault files, it is *not* a replacement for the ansible-vault tool, that tool is a fully featured tool for working with ansible vault files.
 
 ## Safer, battle hardened, tested, more sensible options for storing secrets (Use these instead)
 
@@ -47,10 +52,80 @@ Generates libansible-vault-cpp.so\[.0.1\] and ansible-vault-cpp_test.
 ./ansible-vault-cpp_test
 ```
 
-## Limitations
+## Usage
 
-- Does not support the Vault ID part
-- Apart from some basic unit tests this is basically untested code. It is basically experimental code, do **not** trust it with your secrets
+**NOTE: These examples are lacking error checking**
+
+Link to the library in your cmake file:
+```cmake
+TARGET_LINK_LIBRARIES(myapplication ansible-vault-cpp)
+```
+
+Encrypt with the library
+```cpp
+#include <iostream>
+#include <fstream>
+
+#include "ansible_vault.h"
+
+void EncryptVaultFile()
+{
+  // NOTE: SecureString is meant to be pervasive. Sensitive data and passwords should be cleared from memory before release
+  const std::string plain_text_str = "My encrypted text.\nAnd another line.\n"; // Take care of where you get this string from and store it
+  const vault::SecureString plain_text(plain_text_str.c_str(), plain_text_str.length());
+  const std::string password_str = "mytestpassword"; // Take care of where you get this string from and store it
+  const vault::SecureString password(password_str.c_str(), password_str.length());
+  const std::string salt_utf8 = "ed3496252ad601cf571ac38eab55544f";
+  vault::SecureArray<uint8_t, 32> salt;
+  CopyStringToBytes(salt_utf8, salt);
+
+  std::ostringstream encrypted;
+  const vault::ENCRYPT_RESULT encryption_result = vault::encrypt(plain_text, password, salt, encrypted);
+  if (encryption_result != vault::ENCRYPT_RESULT::OK) {
+    std::cerr<<"Error encrypting the string"<<std::endl;
+  } else {
+    std::cout<<"Successfully encrypted the string"<<std::endl;
+
+    // Write the ansible vault content out to a file
+    {
+      std::ofstream out("myvault");
+      out<<encrypted.str()<<std::endl;
+    }
+
+    std::cout<<"Wrote output to file"<<std::endl;
+  }
+}
+```
+
+Decrypt with the library
+```cpp
+#include <iostream>
+#include <fstream>
+
+#include "ansible_vault.h"
+
+void DecryptVaultFile()
+{
+  std::string encrypted;
+  {
+    std::ifstream file("myvault");
+    encrypted = ((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  }
+
+  // NOTE: SecureString is meant to be pervasive. Sensitive data and passwords should be cleared from memory before release
+  const std::string password_str = "mytestpassword"; // Take care of where you get this string from and store it
+  const vault::SecureString password(password_str.c_str(), password_str.length());
+
+  vault::SecureString decrypted;
+  const vault::DECRYPT_RESULT decryption_result = vault::decrypt(encrypted, password, decrypted);
+  if (decryption_result != vault::DECRYPT_RESULT::OK) {
+    std::cerr<<"Error decrypting the vault"<<std::endl;
+  } else {
+    std::cout<<"Successfully decrypted the vault"<<std::endl;
+    std::cout<<"Vault content: \""<<decrypted.c_str()<<"\""<<std::endl;
+  }
+}
+```
 
 ## Ansible Vault Format
 
