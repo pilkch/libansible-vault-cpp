@@ -42,7 +42,7 @@ bool leakless_equals(const unsigned char* a, const unsigned char* b, std::size_t
   volatile int diff = 0;
 
   while (len > 0) {
-    diff |= *a++ ^ *b++;
+    diff = diff | (*a++ ^ *b++);
     --len;
   }
 

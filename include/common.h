@@ -37,8 +37,8 @@ public:
   }
 
 
-  typedef std::array<T, count>::iterator iterator;
-  typedef std::array<T, count>::const_iterator const_iterator;
+  typedef typename std::array<T, count>::iterator iterator;
+  typedef typename std::array<T, count>::const_iterator const_iterator;
 
   constexpr iterator begin() noexcept { return buffer.begin(); }
   constexpr const_iterator begin() const noexcept { return buffer.begin(); }

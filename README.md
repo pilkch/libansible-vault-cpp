@@ -39,8 +39,18 @@ sudo yum install cryptopp-devel gtest-devel
 
 ### Build the library and unit tests
 
+gcc
+
 ```bash
 cmake .
+make
+```
+
+Clang
+
+```bash
+rm -rf CMakeFiles CMakeCache.txt cmake_install.cmake
+CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake .
 make
 ```
 
