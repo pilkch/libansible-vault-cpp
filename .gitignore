@@ -1,12 +1,17 @@
 # Ignore binaries
 libansible-vault-cpp.so*
 ansible-vault-cpp_test
+fuzz/fuzz_ansible_vault_decrypt
+fuzz/fuzz_ansible_vault_password
 
 # Ignore temporary cmake files
 CMakeCache.txt
 CMakeFiles
 cmake_install.cmake
 Makefile
+
+# Ignore temporary fuzz files
+fuzz/*.log
 
 
 # Compiled Object files

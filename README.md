@@ -62,6 +62,52 @@ Generates libansible-vault-cpp.so\[.0.1\] and ansible-vault-cpp_test.
 ./ansible-vault-cpp_test
 ```
 
+### Build the fuzzers
+
+```bash
+cd fuzz
+cmake .
+make
+```
+
+### Run the fuzzers
+
+There are some issues with fuzzing because the format is slightly complicated:
+- There are 3 sections, the header has to have the right format, the salt, password, and encrypted content all have to match
+- Apart from the few samples that we supply to the fuzzer as a starting point, it is basically never going to generate inputs that are a valid ansible vault file, parsing is almost always going to early exit
+
+fuzz_ansible_vault_password: The input is interpretted as a password and is used to decrypt a standard ansible vault file, some sample passwords are supplied from fuzz/sample_passwords/  
+fuzz_ansible_vault_decrypt: The input is interpretted as a standard ansible vault file, two attempts to decrypt it with two passwords are tried, some invalid and valid files are supplied from fuzz/sample_ansible_vault/  
+
+Running fuzz_ansible_vault_password for example:
+```bash
+mkdir -p ./corpus/fuzz_ansible_vault_password/
+./fuzz_ansible_vault_password -runs=500000 -fork=4 -max_len=1000 ./corpus/fuzz_ansible_vault_password ./sample_passwords
+```
+
+Running fuzz_ansible_vault_decrypt for example:
+```bash
+mkdir -p ./corpus/fuzz_ansible_vault_decrypt/
+./fuzz_ansible_vault_decrypt -runs=100000000 -fork=4 -max_len=4000 ./corpus/fuzz_ansible_vault_decrypt/ ./sample_ansible_vault/
+```
+
+### Extra fuzzing options
+
+Set a maximum length of the test inputs:
+```bash
+-max_len=1000
+```
+
+Set the number of concurrent processes:
+```bash
+-fork=4
+```
+
+Set a maximum number of iterations to run:
+```bash
+-runs=500
+```
+
 ## Usage
 
 **NOTE: These examples are lacking error checking**
