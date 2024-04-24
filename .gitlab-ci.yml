@@ -1,0 +1,28 @@
+stages:
+  - build
+  - test
+
+default:
+  before_script:
+    - dnf install -y cryptopp-devel gtest-devel
+
+build:
+  stage: build
+  tags:
+    - linux
+    - cpp
+    - make
+  script:
+    # NOTE: We can use either gcc or clang, but it is more fun to build it with clang
+    - CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake .
+    - make
+  artifacts:
+    untracked: true
+
+unit-test:
+  stage: test
+  needs: [build]
+  tags:
+    - linux
+  script:
+    - ./ansible-vault-cpp_test
