@@ -1,7 +1,9 @@
 #pragma once
 
-#include <array>
+#include <cstdint>
 #include <cstring>
+
+#include <array>
 #include <span>
 #include <string_view>
 
